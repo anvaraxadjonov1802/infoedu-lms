@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import uuid4
 
 from django import forms
@@ -8,6 +9,7 @@ from .models import (
     Course, Enrollment, Lesson, LessonProgress, Module, Notification, Presentation,
     Question, Test, TestAnswer, TestAttempt, TheoryContent, User, Video,
 )
+from .storage import upload_admin_file
 
 
 admin.site.site_header = 'InfoEdu boshqaruv paneli'
@@ -22,7 +24,31 @@ class PrettyJSONWidget(forms.Textarea):
         super().__init__(defaults)
 
 
+class CourseAdminForm(forms.ModelForm):
+    cover_upload = forms.FileField(
+        required=False,
+        label='Kurs rasmi — fayldan yuklash',
+        help_text='JPG, PNG, WEBP va boshqa rasm faylini tanlang. Save bosilganda Supabase Storage ga yuklanadi.',
+        widget=forms.ClearableFileInput(attrs={'accept': 'image/*'}),
+    )
+
+    class Meta:
+        model = Course
+        fields = '__all__'
+
+    def clean_cover_upload(self):
+        uploaded = self.cleaned_data.get('cover_upload')
+        if uploaded and not str(getattr(uploaded, 'content_type', '')).startswith('image/'):
+            raise forms.ValidationError('Kurs rasmi uchun rasm faylini tanlang.')
+        return uploaded
+
+
 class TheoryContentAdminForm(forms.ModelForm):
+    material_upload = forms.FileField(
+        required=False,
+        label='Material fayli — kompyuterdan yuklash',
+        help_text='DOCX, PDF, PPTX, rasm yoki boshqa o‘quv faylini tanlang. U attachments ro‘yxatiga avtomatik qo‘shiladi.',
+    )
     sections = forms.JSONField(
         required=False,
         widget=PrettyJSONWidget(attrs={'rows': 14}),
@@ -36,9 +62,8 @@ class TheoryContentAdminForm(forms.ModelForm):
         required=False,
         widget=PrettyJSONWidget(attrs={'rows': 6}),
         help_text=(
-            'Fayl/link bo‘lmasa [] qoldiring. Misol: '
-            '[{"name":"1-MAVZU.docx","type":"docx","size":"88 KB","downloadUrl":"https://..."}]. '
-            'ID kiritish shart emas.'
+            'Choose file orqali yuklangan fayl avtomatik qo‘shiladi. Qo‘lda link kerak bo‘lsa: '
+            '[{"name":"1-MAVZU.docx","type":"docx","size":"88 KB","downloadUrl":"https://..."}].'
         ),
     )
 
@@ -76,11 +101,17 @@ class TheoryContentAdminForm(forms.ModelForm):
 
 
 class PresentationAdminForm(forms.ModelForm):
+    presentation_upload = forms.FileField(
+        required=False,
+        label='Presentation fayli — kompyuterdan yuklash',
+        help_text='PDF yoki PPTX fayl tanlang. Fayl URL va hajmi avtomatik yoziladi.',
+        widget=forms.ClearableFileInput(attrs={'accept': '.pdf,.ppt,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation'}),
+    )
     slides = forms.JSONField(
         required=False,
         widget=PrettyJSONWidget(attrs={'rows': 10}),
         help_text=(
-            'Agar PDF/PPTX URL ishlatilsa bo‘sh [] qoldirish mumkin. '
+            'PDF/PPTX fayl yuklasangiz bo‘sh [] qoldirish mumkin. '
             'Ichki slaydlar uchun: [{"slideNumber":1,"title":"...","bulletPoints":["..."]}]'
         ),
     )
@@ -89,12 +120,25 @@ class PresentationAdminForm(forms.ModelForm):
         model = Presentation
         fields = '__all__'
 
+    def clean_presentation_upload(self):
+        uploaded = self.cleaned_data.get('presentation_upload')
+        if uploaded:
+            ext = Path(uploaded.name).suffix.lower()
+            if ext not in ('.pdf', '.ppt', '.pptx'):
+                raise forms.ValidationError('Presentation uchun PDF yoki PPTX fayl tanlang.')
+        return uploaded
+
 
 class VideoAdminForm(forms.ModelForm):
+    resource_upload = forms.FileField(
+        required=False,
+        label='Qo‘shimcha resurs fayli',
+        help_text='Video uchun konspekt, PDF, DOCX yoki boshqa kichik resurs faylini yuklash mumkin.',
+    )
     resources = forms.JSONField(
         required=False,
         widget=PrettyJSONWidget(attrs={'rows': 6}),
-        help_text='Qo‘shimcha resurslar bo‘lmasa [] qoldiring.',
+        help_text='Choose file orqali yuklangan resurs avtomatik qo‘shiladi. Qo‘shimcha resurs bo‘lmasa [] qoldiring.',
     )
 
     class Meta:
@@ -146,6 +190,7 @@ class ModuleInline(admin.TabularInline):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
+    form = CourseAdminForm
     list_display = ('code', 'title', 'teacher', 'category', 'level', 'status', 'updated_at')
     list_filter = ('status', 'category', 'level')
     search_fields = ('code', 'title', 'description', 'teacher__email', 'teacher__first_name', 'teacher__last_name')
@@ -154,10 +199,17 @@ class CourseAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         ('Asosiy ma’lumot', {'fields': ('code', 'title', 'description', 'teacher', 'status')}),
-        ('Katalog', {'fields': ('category', 'level', 'estimated_study_hours', 'tags', 'cover_image')}),
+        ('Katalog', {'fields': ('category', 'level', 'estimated_study_hours', 'tags', 'cover_upload', 'cover_image')}),
         ('Tizim', {'fields': ('created_at', 'updated_at'), 'classes': ('collapse',)}),
     )
     inlines = [ModuleInline]
+
+    def save_model(self, request, obj, form, change):
+        uploaded = form.cleaned_data.get('cover_upload')
+        if uploaded:
+            stored = upload_admin_file(uploaded, folder=f'courses/{obj.code or "course"}/covers')
+            obj.cover_image = stored['url']
+        super().save_model(request, obj, form, change)
 
 
 class LessonInline(admin.TabularInline):
@@ -211,12 +263,29 @@ class TheoryContentAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Qaysi darsga', {'fields': ('lesson',)}),
         ('Matnli material', {'fields': ('reading_time_minutes', 'summary', 'sections')}),
-        ('Biriktirilgan fayl yoki linklar', {'fields': ('attachments',)}),
+        ('Fayl yuklash', {'fields': ('material_upload',)}),
+        ('Biriktirilgan fayllar / qo‘lda linklar', {'fields': ('attachments',), 'classes': ('collapse',)}),
     )
 
     @admin.display(description='Turi')
     def material_type(self, obj):
         return obj.lesson.get_lesson_type_display()
+
+    def save_model(self, request, obj, form, change):
+        uploaded = form.cleaned_data.get('material_upload')
+        if uploaded:
+            course_code = obj.lesson.module.course.code
+            stored = upload_admin_file(uploaded, folder=f'courses/{course_code}/materials')
+            attachments = list(obj.attachments or [])
+            attachments.append({
+                'id': f'file-{uuid4().hex[:10]}',
+                'name': stored['name'],
+                'type': stored['extension'],
+                'size': stored['sizeLabel'],
+                'downloadUrl': stored['url'],
+            })
+            obj.attachments = attachments
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Presentation)
@@ -228,10 +297,23 @@ class PresentationAdmin(admin.ModelAdmin):
     autocomplete_fields = ('lesson',)
     fieldsets = (
         ('Taqdimot', {'fields': ('lesson', 'title', 'file_type')}),
-        ('Fayl', {'fields': ('file_url', 'embed_url', 'file_size')}),
+        ('Kompyuterdan yuklash', {'fields': ('presentation_upload',)}),
+        ('Fayl URLlari', {'fields': ('file_url', 'embed_url', 'file_size'), 'classes': ('collapse',)}),
         ('Ichki slaydlar', {'fields': ('slides',), 'classes': ('collapse',)}),
         ('Tizim', {'fields': ('uploaded_at',), 'classes': ('collapse',)}),
     )
+
+    def save_model(self, request, obj, form, change):
+        uploaded = form.cleaned_data.get('presentation_upload')
+        if uploaded:
+            course_code = obj.lesson.module.course.code
+            stored = upload_admin_file(uploaded, folder=f'courses/{course_code}/presentations')
+            ext = Path(uploaded.name).suffix.lower()
+            obj.file_type = 'pdf' if ext == '.pdf' else 'pptx'
+            obj.file_url = stored['url']
+            obj.file_size = stored['sizeLabel']
+            obj.embed_url = stored['url'] if obj.file_type == 'pdf' else ''
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Video)
@@ -244,8 +326,25 @@ class VideoAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Video', {'fields': ('lesson', 'title', 'video_url', 'embed_type', 'duration_seconds')}),
         ('Tavsif', {'fields': ('description', 'transcript')}),
+        ('Resurs faylini yuklash', {'fields': ('resource_upload',)}),
         ('Qo‘shimcha resurslar', {'fields': ('resources',), 'classes': ('collapse',)}),
     )
+
+    def save_model(self, request, obj, form, change):
+        uploaded = form.cleaned_data.get('resource_upload')
+        if uploaded:
+            course_code = obj.lesson.module.course.code
+            stored = upload_admin_file(uploaded, folder=f'courses/{course_code}/video-resources')
+            resources = list(obj.resources or [])
+            resources.append({
+                'id': f'resource-{uuid4().hex[:10]}',
+                'title': stored['name'],
+                'fileType': stored['extension'],
+                'fileSize': stored['sizeLabel'],
+                'downloadUrl': stored['url'],
+            })
+            obj.resources = resources
+        super().save_model(request, obj, form, change)
 
 
 class QuestionInline(admin.StackedInline):
