@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
@@ -25,19 +27,52 @@ class TheoryContentAdminForm(forms.ModelForm):
         required=False,
         widget=PrettyJSONWidget(attrs={'rows': 14}),
         help_text=(
-            'Nazariya bo‘limlari JSON ro‘yxat ko‘rinishida. Misol: '
-            '[{"title":"Kirish","contentMarkdown":"Dars matni..."}]'
+            'Nazariya, amaliy yoki mustaqil ish matnini bo‘limlarga ajrating. '
+            'Eng sodda misol: [{"title":"Kirish","contentMarkdown":"Word fayldagi matn..."}]. '
+            'ID kiritish shart emas — tizim o‘zi yaratadi.'
         ),
     )
     attachments = forms.JSONField(
         required=False,
-        widget=PrettyJSONWidget(attrs={'rows': 5}),
-        help_text='Qo‘shimcha fayllar bo‘lmasa [] qoldiring.',
+        widget=PrettyJSONWidget(attrs={'rows': 6}),
+        help_text=(
+            'Fayl/link bo‘lmasa [] qoldiring. Misol: '
+            '[{"name":"1-MAVZU.docx","type":"docx","size":"88 KB","downloadUrl":"https://..."}]. '
+            'ID kiritish shart emas.'
+        ),
     )
 
     class Meta:
         model = TheoryContent
         fields = '__all__'
+
+    def clean_sections(self):
+        sections = self.cleaned_data.get('sections') or []
+        normalized = []
+        for index, item in enumerate(sections, start=1):
+            if not isinstance(item, dict):
+                raise forms.ValidationError('Har bir bo‘lim JSON object bo‘lishi kerak.')
+            row = dict(item)
+            row.setdefault('id', f'section-{uuid4().hex[:10]}')
+            row.setdefault('title', f'{index}-bo‘lim')
+            row.setdefault('contentMarkdown', '')
+            normalized.append(row)
+        return normalized
+
+    def clean_attachments(self):
+        attachments = self.cleaned_data.get('attachments') or []
+        normalized = []
+        for item in attachments:
+            if not isinstance(item, dict):
+                raise forms.ValidationError('Har bir fayl JSON object bo‘lishi kerak.')
+            row = dict(item)
+            row.setdefault('id', f'file-{uuid4().hex[:10]}')
+            row.setdefault('name', 'Material')
+            row.setdefault('type', 'file')
+            row.setdefault('size', '')
+            row.setdefault('downloadUrl', '')
+            normalized.append(row)
+        return normalized
 
 
 class PresentationAdminForm(forms.ModelForm):
@@ -151,7 +186,7 @@ class LessonAdmin(admin.ModelAdmin):
     list_editable = ('is_published',)
     ordering = ('module', 'order')
     fieldsets = (
-        ('Dars', {'fields': ('module', 'title', 'lesson_type', 'description')}),
+        ('Material', {'fields': ('module', 'title', 'lesson_type', 'description')}),
         ('Tartib va holat', {'fields': ('order', 'duration_minutes', 'is_published')}),
     )
 
@@ -169,14 +204,19 @@ class EnrollmentAdmin(admin.ModelAdmin):
 @admin.register(TheoryContent)
 class TheoryContentAdmin(admin.ModelAdmin):
     form = TheoryContentAdminForm
-    list_display = ('lesson', 'reading_time_minutes')
+    list_display = ('lesson', 'material_type', 'reading_time_minutes')
+    list_filter = ('lesson__lesson_type', 'lesson__module__course')
     search_fields = ('lesson__title', 'lesson__module__course__title', 'summary')
     autocomplete_fields = ('lesson',)
     fieldsets = (
         ('Qaysi darsga', {'fields': ('lesson',)}),
-        ('Nazariya', {'fields': ('reading_time_minutes', 'summary', 'sections')}),
-        ('Qo‘shimcha fayllar', {'fields': ('attachments',), 'classes': ('collapse',)}),
+        ('Matnli material', {'fields': ('reading_time_minutes', 'summary', 'sections')}),
+        ('Biriktirilgan fayl yoki linklar', {'fields': ('attachments',)}),
     )
+
+    @admin.display(description='Turi')
+    def material_type(self, obj):
+        return obj.lesson.get_lesson_type_display()
 
 
 @admin.register(Presentation)
