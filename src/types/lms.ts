@@ -22,7 +22,7 @@ export interface UserProfile {
   activeCoursesCount: number;
 }
 
-export type LessonType = 'theory' | 'presentation' | 'video' | 'test';
+export type LessonType = 'theory' | 'practical' | 'independent' | 'presentation' | 'video' | 'test';
 
 export interface Lesson {
   id: string;
@@ -36,7 +36,6 @@ export interface Lesson {
   isLocked: boolean;
   isCurrent?: boolean;
   description?: string;
-  // Specific data IDs
   theoryId?: string;
   presentationId?: string;
   videoId?: string;
