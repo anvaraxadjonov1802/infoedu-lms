@@ -23,6 +23,14 @@ services:
         value: "False"
       - key: DEMO_PASSWORD
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: "infoedu-materials"
+      - key: SUPABASE_STORAGE_MAX_FILE_SIZE
+        value: "52428800"
       - key: CORS_ALLOW_ALL_ORIGINS
         value: "False"
       - key: SECURE_SSL_REDIRECT
