@@ -8,6 +8,8 @@ import {
   Presentation,
   Video,
   FileQuestion,
+  ClipboardList,
+  NotebookPen,
   Lock,
   CheckCircle2,
   Clock,
@@ -29,6 +31,10 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({ module, module
     switch (type) {
       case 'theory':
         return <FileText className="w-4 h-4 text-blue-600" />;
+      case 'practical':
+        return <ClipboardList className="w-4 h-4 text-emerald-600" />;
+      case 'independent':
+        return <NotebookPen className="w-4 h-4 text-cyan-700" />;
       case 'presentation':
         return <Presentation className="w-4 h-4 text-purple-600" />;
       case 'video':
@@ -42,6 +48,10 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({ module, module
     switch (type) {
       case 'theory':
         return 'Nazariya';
+      case 'practical':
+        return 'Amaliy ish';
+      case 'independent':
+        return 'Mustaqil ish';
       case 'presentation':
         return 'Taqdimot';
       case 'video':
@@ -57,8 +67,8 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({ module, module
       return;
     }
 
-    if (lesson.type === 'theory') {
-      navigateTo('theory', { lessonId: lesson.id });
+    if (lesson.type === 'theory' || lesson.type === 'practical' || lesson.type === 'independent') {
+      navigateTo('theory', lesson.theoryId ? { theoryId: lesson.theoryId } : { lessonId: lesson.id });
     } else if (lesson.type === 'presentation') {
       navigateTo('presentations', { lessonId: lesson.id });
     } else if (lesson.type === 'video') {
@@ -74,7 +84,6 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({ module, module
 
   return (
     <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden mb-3 shadow-xs">
-      {/* Accordion Header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors"
@@ -97,7 +106,6 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({ module, module
         </div>
       </button>
 
-      {/* Accordion Content Lessons List */}
       {isOpen && (
         <div className="border-t border-slate-100 divide-y divide-slate-100 bg-slate-50/50">
           {module.lessons.map((lesson) => (
@@ -127,11 +135,10 @@ export const ModuleAccordion: React.FC<ModuleAccordionProps> = ({ module, module
                 </div>
               </div>
 
-              {/* Status Badge */}
               <div className="shrink-0 flex items-center gap-2">
                 {lesson.isCompleted ? (
                   <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Bajartirildi
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Bajarildi
                   </span>
                 ) : lesson.isLocked ? (
                   <span className="inline-flex items-center gap-1 text-slate-400 font-medium text-xs bg-slate-200/60 px-2.5 py-1 rounded-full">
