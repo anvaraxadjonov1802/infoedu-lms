@@ -1,6 +1,13 @@
+from uuid import uuid4
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+
+
+def generate_content_id():
+    """Stable string PK generator for LMS objects created from Django admin/API."""
+    return uuid4().hex
 
 
 class User(AbstractUser):
@@ -28,7 +35,7 @@ class User(AbstractUser):
 
 class Course(models.Model):
     STATUS_CHOICES = [('draft', 'Draft'), ('published', 'Published'), ('archived', 'Archived')]
-    id = models.CharField(primary_key=True, max_length=64)
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
     title = models.CharField(max_length=255)
     code = models.CharField(max_length=64, unique=True)
     cover_image = models.URLField(blank=True)
@@ -51,7 +58,7 @@ class Course(models.Model):
 
 class Enrollment(models.Model):
     STATUS_CHOICES = [('not_started', 'Boshlanmagan'), ('in_progress', 'Jarayonda'), ('completed', 'Tugallangan')]
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='enrollments')
+    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='enrollments', limit_choices_to={'role': 'student'})
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='enrollments')
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='not_started')
     enrolled_at = models.DateTimeField(auto_now_add=True)
@@ -60,9 +67,12 @@ class Enrollment(models.Model):
     class Meta:
         constraints = [models.UniqueConstraint(fields=['student', 'course'], name='unique_enrollment')]
 
+    def __str__(self):
+        return f'{self.student} → {self.course}'
+
 
 class Module(models.Model):
-    id = models.CharField(primary_key=True, max_length=64)
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='modules')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -73,12 +83,12 @@ class Module(models.Model):
         constraints = [models.UniqueConstraint(fields=['course', 'order'], name='unique_module_order')]
 
     def __str__(self):
-        return self.title
+        return f'{self.course.code} / {self.order}. {self.title}'
 
 
 class Lesson(models.Model):
     TYPE_CHOICES = [('theory', 'Nazariya'), ('presentation', 'Taqdimot'), ('video', 'Video'), ('test', 'Test')]
-    id = models.CharField(primary_key=True, max_length=64)
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='lessons')
     title = models.CharField(max_length=255)
     lesson_type = models.CharField(max_length=16, choices=TYPE_CHOICES)
@@ -96,22 +106,25 @@ class Lesson(models.Model):
         return self.module.course
 
     def __str__(self):
-        return self.title
+        return f'{self.module.course.code} / {self.module.order}.{self.order} {self.title}'
 
 
 class TheoryContent(models.Model):
-    id = models.CharField(primary_key=True, max_length=64)
-    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='theory_content')
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
+    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='theory_content', limit_choices_to={'lesson_type': 'theory'})
     reading_time_minutes = models.PositiveIntegerField(default=5)
     summary = models.TextField(blank=True)
     sections = models.JSONField(default=list, blank=True)
     attachments = models.JSONField(default=list, blank=True)
 
+    def __str__(self):
+        return f'Nazariya — {self.lesson}'
+
 
 class Presentation(models.Model):
     FILE_CHOICES = [('pdf', 'PDF'), ('pptx', 'PPTX')]
-    id = models.CharField(primary_key=True, max_length=64)
-    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='presentation_content')
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
+    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='presentation_content', limit_choices_to={'lesson_type': 'presentation'})
     title = models.CharField(max_length=255)
     file_type = models.CharField(max_length=8, choices=FILE_CHOICES, default='pdf')
     file_size = models.CharField(max_length=32, blank=True)
@@ -120,11 +133,14 @@ class Presentation(models.Model):
     slides = models.JSONField(default=list, blank=True)
     uploaded_at = models.DateTimeField(default=timezone.now)
 
+    def __str__(self):
+        return self.title
+
 
 class Video(models.Model):
     PROVIDER_CHOICES = [('youtube', 'YouTube'), ('vimeo', 'Vimeo'), ('direct', 'Direct')]
-    id = models.CharField(primary_key=True, max_length=64)
-    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='video_content')
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
+    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='video_content', limit_choices_to={'lesson_type': 'video'})
     title = models.CharField(max_length=255)
     video_url = models.URLField()
     embed_type = models.CharField(max_length=16, choices=PROVIDER_CHOICES, default='youtube')
@@ -133,14 +149,20 @@ class Video(models.Model):
     resources = models.JSONField(default=list, blank=True)
     transcript = models.TextField(blank=True)
 
+    def __str__(self):
+        return self.title
+
 
 class Test(models.Model):
-    id = models.CharField(primary_key=True, max_length=64)
-    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='test_content')
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
+    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='test_content', limit_choices_to={'lesson_type': 'test'})
     title = models.CharField(max_length=255)
     time_limit_minutes = models.PositiveIntegerField(default=20)
     attempts_allowed = models.PositiveIntegerField(default=3)
     passing_score_percent = models.PositiveIntegerField(default=60)
+
+    def __str__(self):
+        return self.title
 
 
 class Question(models.Model):
@@ -150,7 +172,7 @@ class Question(models.Model):
         ('true_false', 'True/False'),
         ('short_text', 'Short text'),
     ]
-    id = models.CharField(primary_key=True, max_length=64)
+    id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
     test = models.ForeignKey(Test, on_delete=models.CASCADE, related_name='questions')
     question_text = models.TextField()
     question_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
@@ -166,6 +188,9 @@ class Question(models.Model):
         ordering = ['test_id', 'order']
         constraints = [models.UniqueConstraint(fields=['test', 'order'], name='unique_question_order')]
 
+    def __str__(self):
+        return self.question_text[:80]
+
 
 class LessonProgress(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lesson_progress')
@@ -180,6 +205,9 @@ class LessonProgress(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['student', 'lesson'], name='unique_lesson_progress')]
+
+    def __str__(self):
+        return f'{self.student} — {self.lesson}'
 
 
 class TestAttempt(models.Model):
@@ -200,6 +228,9 @@ class TestAttempt(models.Model):
         ordering = ['-submitted_at']
         constraints = [models.UniqueConstraint(fields=['student', 'test', 'attempt_number'], name='unique_test_attempt_number')]
 
+    def __str__(self):
+        return f'{self.student} — {self.test} #{self.attempt_number}'
+
 
 class TestAnswer(models.Model):
     attempt = models.ForeignKey(TestAttempt, on_delete=models.CASCADE, related_name='answers')
@@ -215,7 +246,7 @@ class TestAnswer(models.Model):
 
 class Notification(models.Model):
     TYPE_CHOICES = [('lesson', 'Lesson'), ('test', 'Test'), ('result', 'Result'), ('announcement', 'Announcement'), ('system', 'System')]
-    id = models.CharField(primary_key=True, max_length=80)
+    id = models.CharField(primary_key=True, max_length=80, default=generate_content_id, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     title = models.CharField(max_length=255)
     message = models.TextField()
@@ -226,3 +257,6 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.title} → {self.user}'
