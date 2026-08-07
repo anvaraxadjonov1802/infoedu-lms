@@ -87,7 +87,14 @@ class Module(models.Model):
 
 
 class Lesson(models.Model):
-    TYPE_CHOICES = [('theory', 'Nazariya'), ('presentation', 'Taqdimot'), ('video', 'Video'), ('test', 'Test')]
+    TYPE_CHOICES = [
+        ('theory', 'Nazariya'),
+        ('practical', 'Amaliy ish'),
+        ('independent', 'Mustaqil ish'),
+        ('presentation', 'Taqdimot'),
+        ('video', 'Video'),
+        ('test', 'Test'),
+    ]
     id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='lessons')
     title = models.CharField(max_length=255)
@@ -110,15 +117,27 @@ class Lesson(models.Model):
 
 
 class TheoryContent(models.Model):
+    """Rich text material used by theory, practical and independent-work lessons."""
+
     id = models.CharField(primary_key=True, max_length=64, default=generate_content_id, editable=False)
-    lesson = models.OneToOneField(Lesson, on_delete=models.CASCADE, related_name='theory_content', limit_choices_to={'lesson_type': 'theory'})
+    lesson = models.OneToOneField(
+        Lesson,
+        on_delete=models.CASCADE,
+        related_name='theory_content',
+        limit_choices_to={'lesson_type__in': ['theory', 'practical', 'independent']},
+    )
     reading_time_minutes = models.PositiveIntegerField(default=5)
     summary = models.TextField(blank=True)
     sections = models.JSONField(default=list, blank=True)
     attachments = models.JSONField(default=list, blank=True)
 
+    class Meta:
+        verbose_name = 'Matnli material'
+        verbose_name_plural = 'Matnli materiallar'
+
     def __str__(self):
-        return f'Nazariya — {self.lesson}'
+        labels = {'theory': 'Nazariya', 'practical': 'Amaliy ish', 'independent': 'Mustaqil ish'}
+        return f"{labels.get(self.lesson.lesson_type, 'Material')} — {self.lesson}"
 
 
 class Presentation(models.Model):
