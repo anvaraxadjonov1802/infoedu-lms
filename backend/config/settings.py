@@ -76,9 +76,11 @@ STORAGES = {
 }
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Admin file uploads are sent server-side to Supabase Storage. The service-role
-# key must never be exposed to the Vite frontend.
+# Admin file uploads are sent server-side to Supabase Storage. Never expose the
+# secret/service-role key to Vite or any browser code.
 SUPABASE_URL = os.getenv('SUPABASE_URL', '').rstrip('/')
+SUPABASE_SECRET_KEY = os.getenv('SUPABASE_SECRET_KEY', '')
+# Legacy fallback while Supabase transitions away from service_role JWT keys.
 SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
 SUPABASE_STORAGE_BUCKET = os.getenv('SUPABASE_STORAGE_BUCKET', 'infoedu-materials')
 SUPABASE_STORAGE_MAX_FILE_SIZE = int(os.getenv('SUPABASE_STORAGE_MAX_FILE_SIZE', str(50 * 1024 * 1024)))
