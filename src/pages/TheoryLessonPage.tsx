@@ -9,20 +9,35 @@ import { adjacentLessons, routeForLesson } from '../services/lessonNavigation';
 export const TheoryLessonPage: React.FC = () => {
   const { theoryLessons, courses, pageParams, navigateTo } = useLMS();
 
-  const theoryId = pageParams.theoryId || Object.keys(theoryLessons)[0];
+  const lessonId = pageParams.lessonId as string | undefined;
+  const fallbackTheory = lessonId
+    ? Object.values(theoryLessons).find((item) => item.lessonId === lessonId)
+    : undefined;
+  const theoryId = pageParams.theoryId || fallbackTheory?.id || Object.keys(theoryLessons)[0];
   const theory = theoryId ? theoryLessons[theoryId] : undefined;
 
   if (!theory) {
     return (
       <EmptyState
-        title="Nazariy dars topilmadi"
-        description="Tanlangan dars ID bazada mavjud emas."
+        title="Material topilmadi"
+        description="Tanlangan dars uchun matnli material hali kiritilmagan."
         actionLabel="Kurslarga qaytish"
         onAction={() => navigateTo('courses')}
         icon={FileText}
       />
     );
   }
+
+  const currentLesson = courses
+    .flatMap((course) => course.modules)
+    .flatMap((module) => module.lessons)
+    .find((lesson) => lesson.id === theory.lessonId);
+
+  const materialLabel = currentLesson?.type === 'practical'
+    ? 'Amaliy ish'
+    : currentLesson?.type === 'independent'
+      ? 'Mustaqil ish'
+      : 'Nazariy material';
 
   const adjacent = adjacentLessons(courses, theory.lessonId);
   const previousRoute = routeForLesson(adjacent.previous);
@@ -33,7 +48,7 @@ export const TheoryLessonPage: React.FC = () => {
       <Breadcrumbs
         items={[
           { label: 'Mening kurslarim', page: 'courses' },
-          { label: 'Nazariy darslar' },
+          { label: materialLabel },
           { label: theory.title },
         ]}
       />
