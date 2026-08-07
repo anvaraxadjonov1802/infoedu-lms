@@ -6,6 +6,7 @@ import { ToastContainer } from './components/common/ToastContainer';
 
 // Pages
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { CoursesPage } from './pages/CoursesPage';
 import { CourseDetailPage } from './pages/CourseDetailPage';
@@ -26,6 +27,11 @@ const MainLayout: React.FC = () => {
   const { isAuthenticated, activePage, isBootstrapping } = useLMS();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [authScreen, setAuthScreen] = React.useState<'login' | 'register'>('login');
+
+  React.useEffect(() => {
+    if (isAuthenticated) setAuthScreen('login');
+  }, [isAuthenticated]);
 
   if (isBootstrapping) {
     return (
@@ -39,7 +45,9 @@ const MainLayout: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage />;
+    return authScreen === 'register'
+      ? <RegisterPage onBackToLogin={() => setAuthScreen('login')} />
+      : <LoginPage onRegister={() => setAuthScreen('register')} />;
   }
 
   const renderActivePage = () => {
@@ -81,19 +89,13 @@ const MainLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 flex flex-col md:flex-row antialiased selection:bg-indigo-600 selection:text-white">
-      {/* Sidebar Navigation */}
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-
-      {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Header setMobileOpen={setMobileOpen} />
-
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
           {renderActivePage()}
         </main>
       </div>
-
-      {/* Toast Notifications Overlay */}
       <ToastContainer />
     </div>
   );
