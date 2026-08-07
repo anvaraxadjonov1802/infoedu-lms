@@ -16,20 +16,25 @@ MAX_UPLOAD_BYTES = int(getattr(settings, 'SUPABASE_STORAGE_MAX_FILE_SIZE', 50 * 
 
 def _config():
     base_url = (getattr(settings, 'SUPABASE_URL', '') or '').rstrip('/')
-    service_key = getattr(settings, 'SUPABASE_SERVICE_ROLE_KEY', '') or ''
+    secret_key = (
+        getattr(settings, 'SUPABASE_SECRET_KEY', '')
+        or getattr(settings, 'SUPABASE_SERVICE_ROLE_KEY', '')
+        or ''
+    )
     bucket = getattr(settings, 'SUPABASE_STORAGE_BUCKET', 'infoedu-materials') or 'infoedu-materials'
-    if not base_url or not service_key:
+    if not base_url or not secret_key:
         raise ImproperlyConfigured(
-            'Supabase Storage sozlanmagan. SUPABASE_URL va SUPABASE_SERVICE_ROLE_KEY ni Render Environment ga kiriting.'
+            'Supabase Storage sozlanmagan. SUPABASE_URL va SUPABASE_SECRET_KEY ni Render Environment ga kiriting.'
         )
-    return base_url, service_key, bucket
+    return base_url, secret_key, bucket
 
 
-def _headers(service_key, **extra):
-    headers = {
-        'Authorization': f'Bearer {service_key}',
-        'apikey': service_key,
-    }
+def _headers(secret_key, **extra):
+    # Modern sb_secret_* keys are gateway API keys, not JWTs. Legacy service_role
+    # keys are JWTs and can also be used as a Bearer token.
+    headers = {'apikey': secret_key}
+    if not secret_key.startswith('sb_secret_'):
+        headers['Authorization'] = f'Bearer {secret_key}'
     headers.update(extra)
     return headers
 
@@ -42,7 +47,7 @@ def _safe_filename(name):
 
 
 def ensure_public_bucket():
-    base_url, service_key, bucket = _config()
+    base_url, secret_key, bucket = _config()
     payload = json.dumps({
         'id': bucket,
         'name': bucket,
@@ -53,7 +58,7 @@ def ensure_public_bucket():
         f'{base_url}/storage/v1/bucket',
         data=payload,
         method='POST',
-        headers=_headers(service_key, **{'Content-Type': 'application/json'}),
+        headers=_headers(secret_key, **{'Content-Type': 'application/json'}),
     )
     try:
         with urlopen(request, timeout=20):
@@ -77,7 +82,7 @@ def upload_admin_file(uploaded_file, folder='materials'):
     if size > MAX_UPLOAD_BYTES:
         raise ValidationError(f'Fayl hajmi {MAX_UPLOAD_BYTES // (1024 * 1024)} MB dan katta bo‘lmasligi kerak.')
 
-    base_url, service_key, bucket = _config()
+    base_url, secret_key, bucket = _config()
     ensure_public_bucket()
 
     safe_folder = re.sub(r'[^A-Za-z0-9/_-]+', '-', folder or 'materials').strip('/') or 'materials'
@@ -92,7 +97,7 @@ def upload_admin_file(uploaded_file, folder='materials'):
         data=body,
         method='POST',
         headers=_headers(
-            service_key,
+            secret_key,
             **{
                 'Content-Type': content_type,
                 'Cache-Control': '3600',
