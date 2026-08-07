@@ -15,6 +15,30 @@ export interface LoginResponse {
   user: UserProfile;
 }
 
+export interface RegisterPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  university?: string;
+  faculty?: string;
+  groupName?: string;
+  studentId?: string;
+  password: string;
+  passwordConfirm: string;
+}
+
+export interface RegisterResponse {
+  detail: string;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: 'student';
+  };
+}
+
 export interface SubmitTestPayload {
   answers: Record<string, unknown>;
   flaggedQuestionIds?: string[];
@@ -141,6 +165,13 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
 export const api = {
   hasSession: () => Boolean(readToken(ACCESS_KEY) || readToken(REFRESH_KEY)),
   clearSession: clearTokens,
+
+  async register(payload: RegisterPayload): Promise<RegisterResponse> {
+    return request<RegisterResponse>('/auth/register/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, false);
+  },
 
   async logout(): Promise<void> {
     const refresh = readToken(REFRESH_KEY);
