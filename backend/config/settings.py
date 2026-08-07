@@ -76,6 +76,16 @@ STORAGES = {
 }
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Admin file uploads are sent server-side to Supabase Storage. The service-role
+# key must never be exposed to the Vite frontend.
+SUPABASE_URL = os.getenv('SUPABASE_URL', '').rstrip('/')
+SUPABASE_SERVICE_ROLE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
+SUPABASE_STORAGE_BUCKET = os.getenv('SUPABASE_STORAGE_BUCKET', 'infoedu-materials')
+SUPABASE_STORAGE_MAX_FILE_SIZE = int(os.getenv('SUPABASE_STORAGE_MAX_FILE_SIZE', str(50 * 1024 * 1024)))
+DATA_UPLOAD_MAX_MEMORY_SIZE = SUPABASE_STORAGE_MAX_FILE_SIZE + (2 * 1024 * 1024)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024
+
+
 def _origins_from_env(name, default):
     origins = []
     for value in os.getenv(name, default).split(','):
