@@ -1,3 +1,4 @@
+import django.db.models.deletion
 from django.db import migrations, models
 
 
@@ -27,7 +28,7 @@ class Migration(migrations.Migration):
             name='lesson',
             field=models.OneToOneField(
                 limit_choices_to={'lesson_type__in': ['theory', 'practical', 'independent']},
-                on_delete=models.deletion.CASCADE,
+                on_delete=django.db.models.deletion.CASCADE,
                 related_name='theory_content',
                 to='lms.lesson',
             ),
