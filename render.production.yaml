@@ -1,0 +1,75 @@
+services:
+  - type: web
+    name: infoedu-api
+    runtime: python
+    plan: starter
+    region: frankfurt
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput
+    initialDeployHook: python manage.py seed_demo
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health/
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: infoedu-db
+          property: connectionString
+      - key: DEMO_MODE
+        value: "False"
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: "False"
+      - key: CORS_ALLOWED_ORIGINS
+        fromService:
+          type: web
+          name: infoedu-web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: CSRF_TRUSTED_ORIGINS
+        fromService:
+          type: web
+          name: infoedu-web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: SECURE_HSTS_SECONDS
+        value: "31536000"
+
+  - type: web
+    name: infoedu-web
+    runtime: static
+    buildCommand: npm ci || npm install && npm run build
+    staticPublishPath: ./dist
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: infoedu-api
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_DEMO_MODE
+        value: "False"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: infoedu-db
+    plan: basic-256mb
+    region: frankfurt
+    diskSizeGB: 15
+    storageAutoscalingEnabled: true
+    ipAllowList: []
+    databaseName: infoedu
+    user: infoedu
