@@ -8,7 +8,12 @@ export interface LessonRoute {
 
 export function routeForLesson(lesson?: Lesson | null): LessonRoute | null {
   if (!lesson) return null;
-  if (lesson.type === 'theory' && lesson.theoryId) return { page: 'theory', params: { theoryId: lesson.theoryId } };
+  if (lesson.type === 'theory' || lesson.type === 'practical' || lesson.type === 'independent') {
+    return {
+      page: 'theory',
+      params: lesson.theoryId ? { theoryId: lesson.theoryId } : { lessonId: lesson.id },
+    };
+  }
   if (lesson.type === 'presentation' && lesson.presentationId) return { page: 'presentations', params: { presentationId: lesson.presentationId } };
   if (lesson.type === 'video' && lesson.videoId) return { page: 'videos', params: { videoId: lesson.videoId } };
   if (lesson.type === 'test' && lesson.testId) return { page: 'test_taking', params: { testId: lesson.testId } };
