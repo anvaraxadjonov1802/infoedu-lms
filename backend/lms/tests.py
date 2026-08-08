@@ -2,7 +2,7 @@ from django.core.management import call_command
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import User
+from .models import Course, Enrollment, User
 from .storage import _headers, _safe_filename, format_file_size
 
 
@@ -45,19 +45,34 @@ class LMSApiSmokeTests(TestCase):
         self.assertTrue(response.data['isPassed'])
         self.assertEqual(len(response.data['answerReviews']), 3)
 
-    def test_unenrolled_student_cannot_update_video(self):
-        outsider = User.objects.create_user(
-            username='outsider',
-            email='outsider@example.com',
+    def test_new_student_is_auto_enrolled_in_all_published_courses(self):
+        student = User.objects.create_user(
+            username='auto-student',
+            email='auto-student@example.com',
             password='SecurePass2026!',
             role='student',
         )
-        self.client.force_authenticate(user=outsider)
-        response = self.client.patch('/api/videos/vid-101/progress/', {
-            'seconds': 120,
-            'percentage': 50,
-        }, format='json')
-        self.assertEqual(response.status_code, 403)
+        published_ids = set(Course.objects.filter(status='published').values_list('id', flat=True))
+        enrolled_ids = set(
+            Enrollment.objects.filter(student=student).values_list('course_id', flat=True)
+        )
+        self.assertEqual(enrolled_ids, published_ids)
+
+    def test_new_published_course_is_auto_enrolled_for_students(self):
+        student = User.objects.create_user(
+            username='future-student',
+            email='future-student@example.com',
+            password='SecurePass2026!',
+            role='student',
+        )
+        teacher = User.objects.filter(role__in=['teacher', 'admin']).first()
+        course = Course.objects.create(
+            title='Yangi ochiq kurs',
+            code='AUTO-ACCESS-COURSE',
+            teacher=teacher,
+            status='published',
+        )
+        self.assertTrue(Enrollment.objects.filter(student=student, course=course).exists())
 
     def test_student_cannot_access_admin_stats(self):
         response = self.client.get('/api/admin/stats/')
