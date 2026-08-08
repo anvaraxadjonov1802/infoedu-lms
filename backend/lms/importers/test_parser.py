@@ -1,10 +1,17 @@
 import re
 
 
-QUESTION_RE = re.compile(
-    r'^\s*(?:№\s*)?(?:savol\s*)?(\d{1,3})\s*[\).:\-–—]?\s*(.+)$',
-    re.IGNORECASE,
-)
+QUESTION_PATTERNS = [
+    re.compile(
+        r'^\s*(?:№\s*)?(?:savol|test)\s*(\d{1,3})\s*[\).:\-–—]?\s*(.+)$',
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r'^\s*(\d{1,3})\s*[-–—]?\s*(?:savol|test)\s*[\).:\-–—]?\s*(.+)$',
+        re.IGNORECASE,
+    ),
+    re.compile(r'^\s*(\d{1,3})\s*[\).:]\s*(.+)$'),
+]
 OPTION_RE = re.compile(r'^\s*([A-Ha-h])\s*[\).:\-–—]?\s*(.+)$')
 ANSWER_RE = re.compile(
     r'^\s*(?:to[‘\'`]?g[‘\'`]?ri\s+javob|javobi?|answer|kalit)\s*[:\-–—]?\s*([A-Ha-h])\b',
@@ -15,6 +22,15 @@ ANSWER_PAIR_RE = re.compile(r'(?<!\d)(\d{1,3})\s*[-:.)=]?\s*([A-Ha-h])\b')
 
 def clean_text(value):
     return re.sub(r'\s+', ' ', str(value or '')).strip()
+
+
+def match_question(value):
+    text = clean_text(value)
+    for pattern in QUESTION_PATTERNS:
+        match = pattern.match(text)
+        if match:
+            return int(match.group(1)), clean_text(match.group(2))
+    return None
 
 
 def paragraph_meta(paragraph):
@@ -130,7 +146,7 @@ def extract_paragraph_lines(document):
     return [paragraph_meta(p) for p in document.paragraphs if clean_text(p.text)]
 
 
-def collect_answer_key(lines):
+def collect_paragraph_answer_key(lines):
     answer_key = {}
     for item in lines:
         text = item['text']
@@ -141,8 +157,48 @@ def collect_answer_key(lines):
     return answer_key
 
 
-def parse_explicit_questions(lines):
-    answer_key = collect_answer_key(lines)
+def collect_table_answer_key(document):
+    answer_key = {}
+    for table in document.tables:
+        rows = table.rows
+        if not rows:
+            continue
+
+        header_text = ' '.join(clean_text(cell.text) for cell in rows[0].cells).casefold()
+        looks_like_key = (
+            ('javob' in header_text or 'answer' in header_text or 'kalit' in header_text)
+            and ('test' in header_text or 'savol' in header_text or '№' in header_text)
+        )
+
+        for row_index, row in enumerate(rows):
+            cells = [clean_text(cell.text) for cell in row.cells]
+            nonempty = [cell for cell in cells if cell]
+            if len(nonempty) < 2:
+                continue
+
+            first = nonempty[0].strip(' .:;№#-–—')
+            second = nonempty[1].strip(' .:;()[]-–—')
+            if not re.fullmatch(r'\d{1,3}', first):
+                continue
+            if not re.fullmatch(r'[A-Ha-h]', second):
+                continue
+
+            # A two-column numeric/letter table is very likely an answer key.
+            # If there is a descriptive header, trust it immediately; otherwise
+            # require the row to be after the first row to avoid accidental matches.
+            if looks_like_key or row_index > 0 or len(nonempty) == 2:
+                answer_key[int(first)] = second.lower()
+    return answer_key
+
+
+def collect_answer_key(document, lines):
+    answer_key = collect_paragraph_answer_key(lines)
+    answer_key.update(collect_table_answer_key(document))
+    return answer_key
+
+
+def parse_explicit_questions(lines, answer_key=None):
+    answer_key = answer_key or collect_paragraph_answer_key(lines)
     parsed = []
     current = None
 
@@ -167,12 +223,13 @@ def parse_explicit_questions(lines):
 
     for item in lines:
         line = item['text']
-        q = QUESTION_RE.match(line)
-        if q:
+        question = match_question(line)
+        if question:
             finish()
+            number, question_text = question
             current = {
-                'number': int(q.group(1)),
-                'text': clean_text(q.group(2)),
+                'number': number,
+                'text': question_text,
                 'options': [],
                 'correct': None,
                 'marked_options': [],
@@ -205,8 +262,8 @@ def parse_explicit_questions(lines):
     return parsed
 
 
-def parse_numbered_list_questions(lines):
-    answer_key = collect_answer_key(lines)
+def parse_numbered_list_questions(lines, answer_key=None):
+    answer_key = answer_key or collect_paragraph_answer_key(lines)
     usable = [
         item for item in lines
         if not any(word in item['text'].casefold() for word in ('javoblar', 'javob kaliti', 'answer key'))
@@ -266,8 +323,8 @@ def parse_numbered_list_questions(lines):
     return parsed
 
 
-def parse_grouped_questions(lines):
-    answer_key = collect_answer_key(lines)
+def parse_grouped_questions(lines, answer_key=None):
+    answer_key = answer_key or collect_paragraph_answer_key(lines)
     if not answer_key:
         return []
 
@@ -320,11 +377,12 @@ def parse_grouped_questions(lines):
 def parse_test_questions_document(document):
     table_parsed = parse_table_questions(document)
     lines = extract_paragraph_lines(document)
+    answer_key = collect_answer_key(document, lines)
     candidates = [
         table_parsed,
-        parse_explicit_questions(lines),
-        parse_numbered_list_questions(lines),
-        parse_grouped_questions(lines),
+        parse_explicit_questions(lines, answer_key),
+        parse_numbered_list_questions(lines, answer_key),
+        parse_grouped_questions(lines, answer_key),
     ]
     return max(candidates, key=len) if candidates else []
 
@@ -349,4 +407,8 @@ def inspect_document(document, limit=80):
                     cells.append(f"C{cell_index} marked={cell_marked(cell)}:{text}")
             if cells:
                 output.append(f"  R{row_index:02d} | " + ' || '.join(cells))
+    answer_key = collect_answer_key(document, extract_paragraph_lines(document))
+    if answer_key:
+        preview = ', '.join(f'{number}-{letter.upper()}' for number, letter in sorted(answer_key.items())[:30])
+        output.append(f'ANSWER KEY: {preview}')
     return output
