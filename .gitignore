@@ -12,6 +12,8 @@ backend/staticfiles/
 backend/media/
 backend/.venv/
 backend/venv/
+backend/import_materials/*
+!backend/import_materials/README.md
 **/__pycache__/
 *.py[cod]
 .pytest_cache/
