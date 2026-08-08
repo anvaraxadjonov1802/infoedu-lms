@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-    'lms',
+    'lms.apps.LmsConfig',
 ]
 
 MIDDLEWARE = [
