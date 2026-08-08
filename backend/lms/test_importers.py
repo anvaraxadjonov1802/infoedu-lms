@@ -47,3 +47,33 @@ class RobustTestParserTests(SimpleTestCase):
         parsed = parse_test_questions_document(document)
         self.assertEqual(len(parsed), 1)
         self.assertEqual(parsed[0]['correct_answer'], 'a')
+
+    def test_number_test_heading_with_separate_answer_key_table(self):
+        document = Document()
+        document.add_paragraph('1-MODUL. ALGORITMLASH ASOSLARI')
+        document.add_paragraph('1-MAVZU. ALGORITM TUSHUNCHASI')
+        document.add_paragraph('TEST TOPSHIRIQLARI')
+        document.add_paragraph('1-test Algoritm nima?')
+        document.add_paragraph('A) Kompyuter dasturi')
+        document.add_paragraph('B) Buyruqlar va qadamlar ketma-ketligi')
+        document.add_paragraph('C) Elektron qurilma')
+        document.add_paragraph('D) Matn muharriri')
+        document.add_paragraph('2-test Algoritmning bir bosqichi nima deyiladi?')
+        document.add_paragraph('A) Natija')
+        document.add_paragraph('B) Buyruq')
+        document.add_paragraph('C) Qadam')
+        document.add_paragraph('D) Dastur')
+
+        table = document.add_table(rows=3, cols=2)
+        table.rows[0].cells[0].text = 'Test №'
+        table.rows[0].cells[1].text = 'To‘g‘ri javob'
+        table.rows[1].cells[0].text = '1'
+        table.rows[1].cells[1].text = 'B'
+        table.rows[2].cells[0].text = '2'
+        table.rows[2].cells[1].text = 'C'
+
+        parsed = parse_test_questions_document(document)
+        self.assertEqual(len(parsed), 2)
+        self.assertEqual(parsed[0]['question_text'], 'Algoritm nima?')
+        self.assertEqual(parsed[0]['correct_answer'], 'b')
+        self.assertEqual(parsed[1]['correct_answer'], 'c')
