@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 from docx import Document
 
-from lms.importers.test_parser import parse_test_questions_document
+from lms.importers.test_parser_v3 import parse_test_questions_document
 
 
 class RobustTestParserTests(SimpleTestCase):
@@ -77,3 +77,52 @@ class RobustTestParserTests(SimpleTestCase):
         self.assertEqual(parsed[0]['question_text'], 'Algoritm nima?')
         self.assertEqual(parsed[0]['correct_answer'], 'b')
         self.assertEqual(parsed[1]['correct_answer'], 'c')
+
+    def test_repeated_test_answer_pairs_in_six_column_table(self):
+        document = Document()
+        for number in range(1, 7):
+            document.add_paragraph(f'{number}-test Savol {number}?')
+            document.add_paragraph('A) Birinchi')
+            document.add_paragraph('B) Ikkinchi')
+            document.add_paragraph('C) Uchinchi')
+            document.add_paragraph('D) To‘rtinchi')
+
+        table = document.add_table(rows=3, cols=6)
+        headers = ['Test', 'Javob', 'Test', 'Javob', 'Test', 'Javob']
+        for idx, value in enumerate(headers):
+            table.rows[0].cells[idx].text = value
+        values_1 = ['1', 'A', '3', 'C', '5', 'B']
+        values_2 = ['2', 'B', '4', 'D', '6', 'A']
+        for idx, value in enumerate(values_1):
+            table.rows[1].cells[idx].text = value
+        for idx, value in enumerate(values_2):
+            table.rows[2].cells[idx].text = value
+
+        parsed = parse_test_questions_document(document)
+        self.assertEqual(len(parsed), 6)
+        self.assertEqual([item['correct_answer'] for item in parsed], ['a', 'b', 'c', 'd', 'b', 'a'])
+
+    def test_question_and_all_options_can_be_in_one_paragraph(self):
+        document = Document()
+        document.add_paragraph(
+            '1. Yakuniy loyiha yaratishdan asosiy maqsad nima? '
+            'A) Bilimlarni amalda qo‘llash B) Faqat rasm chizish '
+            'C) Kompyuter qismlari D) Internetdan foydalanish'
+        )
+        document.add_paragraph(
+            '2. Loyiha bosqichlarining birinchisi qaysi? '
+            'A) Sinov B) Reja C) Taqdimot D) Dasturlash'
+        )
+        table = document.add_table(rows=3, cols=2)
+        table.rows[0].cells[0].text = '№'
+        table.rows[0].cells[1].text = 'To‘g‘ri javob'
+        table.rows[1].cells[0].text = '1'
+        table.rows[1].cells[1].text = 'A'
+        table.rows[2].cells[0].text = '2'
+        table.rows[2].cells[1].text = 'B'
+
+        parsed = parse_test_questions_document(document)
+        self.assertEqual(len(parsed), 2)
+        self.assertEqual(parsed[0]['question_text'], 'Yakuniy loyiha yaratishdan asosiy maqsad nima?')
+        self.assertEqual(parsed[0]['correct_answer'], 'a')
+        self.assertEqual(parsed[1]['options'][1]['text'], 'Reja')
