@@ -3,7 +3,7 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 from docx import Document
 
-from lms.importers.test_parser import inspect_document, parse_test_questions_document
+from lms.importers.test_parser_v3 import inspect_document, parse_test_questions_document
 from lms.management.commands.import_course_materials import discover_files
 
 
@@ -33,7 +33,7 @@ class Command(BaseCommand):
             self.stdout.write(line)
 
         parsed = parse_test_questions_document(document)
-        self.stdout.write('--- Parser v2 natijasi ---')
+        self.stdout.write('--- Parser v3 natijasi ---')
         self.stdout.write(f'Aniqlangan savollar: {len(parsed)}')
         for item in parsed[:5]:
             self.stdout.write(
