@@ -1,34 +1,21 @@
 import React from 'react';
-import { LockKeyhole, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { useLMS } from '../context/LMSContext';
 import { EmptyState } from '../components/common/EmptyState';
 import { TestTakingPage } from './TestTakingPage';
 
 export const GuardedTestTakingPage: React.FC = () => {
-  const { tests, courses, pageParams, navigateTo } = useLMS();
+  const { tests, pageParams, navigateTo } = useLMS();
 
   const testId = pageParams.testId as string | undefined;
   const test = testId ? tests[testId] : undefined;
 
+  // Lesson unlock state can be a few milliseconds stale while the lean bootstrap
+  // refresh runs in the background. TestTakingPage fetches /tests/<id>/ and the
+  // backend is the authoritative access guard, so do not reject access from a
+  // stale client-side isLocked flag here.
   if (!test) {
     return <TestTakingPage />;
-  }
-
-  const lesson = courses
-    .flatMap((course) => course.modules)
-    .flatMap((module) => module.lessons)
-    .find((item) => item.testId === test.id);
-
-  if (lesson?.isLocked) {
-    return (
-      <EmptyState
-        title="Test hali ochilmagan"
-        description="Avval oldingi darsni yakunlang. Shundan keyin test avtomatik ochiladi."
-        actionLabel="Kursga qaytish"
-        onAction={() => navigateTo('course_detail', { courseId: test.courseId })}
-        icon={LockKeyhole}
-      />
-    );
   }
 
   if (test.attemptsUsed >= test.attemptsAllowed) {
