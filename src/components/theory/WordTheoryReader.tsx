@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { renderAsync } from 'docx-preview';
 import { TheoryLessonContent } from '../../types/lms';
 import { useLMS } from '../../context/LMSContext';
+import { restoreMissingDocxImages } from './docxImageFallback';
 import {
   Bookmark,
   BookmarkCheck,
@@ -94,6 +95,16 @@ export const WordTheoryReader: React.FC<WordTheoryReaderProps> = ({
           renderComments: false,
           renderAltChunks: true,
         });
+
+        if (cancelled || !containerRef.current) return;
+
+        const imageReport = await restoreMissingDocxImages(blob, containerRef.current);
+        if (imageReport.media > 0 && imageReport.restored === 0) {
+          const visibleImages = containerRef.current.querySelectorAll('img[src], svg image[href], svg image[xlink\\:href]').length;
+          if (visibleImages === 0 && imageReport.unsupported > 0) {
+            console.warn('DOCX ichida brauzer to‘g‘ridan-to‘g‘ri ko‘rsata olmaydigan rasm formatlari bor.', imageReport);
+          }
+        }
 
         if (!cancelled) setIsRendering(false);
       } catch (error) {
