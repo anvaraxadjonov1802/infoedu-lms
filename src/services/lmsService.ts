@@ -8,21 +8,7 @@ import {
   TestResult,
   NotificationItem,
   DailyActivity,
-  UserRole,
 } from '../types/lms';
-import {
-  mockStudent,
-  mockCourses,
-  mockTheoryLessons,
-  mockPresentations,
-  mockVideos,
-  mockTests,
-  mockTestResults,
-  mockNotifications,
-  mockWeeklyActivities,
-} from '../data/mockData';
-
-const STORAGE_KEY = 'infoedu_lms_state_v1';
 
 export interface LMSLocalState {
   user: UserProfile;
@@ -36,39 +22,67 @@ export interface LMSLocalState {
   weeklyActivities: DailyActivity[];
 }
 
+const EMPTY_USER: UserProfile = {
+  id: '',
+  fullName: '',
+  studentId: '',
+  email: '',
+  phone: '',
+  university: '',
+  faculty: '',
+  group: '',
+  role: 'student',
+  avatarUrl: '',
+  registrationDate: '',
+  overallProgress: 0,
+  completedLessonsCount: 0,
+  totalLessonsCount: 0,
+  averageScore: 0,
+  studyStreakDays: 0,
+  longestStreakDays: 0,
+  totalStudyMinutes: 0,
+  activeCoursesCount: 0,
+};
+
+const EMPTY_STATE: LMSLocalState = {
+  user: EMPTY_USER,
+  courses: [],
+  theoryLessons: {},
+  presentations: {},
+  videos: {},
+  tests: {},
+  testResults: [],
+  notifications: [],
+  weeklyActivities: [],
+};
+
+/**
+ * Server data is the source of truth in production. Keeping the complete LMS
+ * payload (hundreds of questions and lesson bodies) in localStorage caused a
+ * large synchronous JSON.parse on startup and JSON.stringify after updates.
+ * Start light and hydrate from /api/bootstrap/ instead.
+ */
 export function loadLMSState(): LMSLocalState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    console.error('Failed to load state from localStorage', e);
-  }
-
-  // Initial State
-  const initialState: LMSLocalState = {
-    user: { ...mockStudent },
-    courses: mockCourses,
-    theoryLessons: mockTheoryLessons,
-    presentations: mockPresentations,
-    videos: mockVideos,
-    tests: mockTests,
-    testResults: mockTestResults,
-    notifications: mockNotifications,
-    weeklyActivities: mockWeeklyActivities,
+  return {
+    ...EMPTY_STATE,
+    user: { ...EMPTY_USER },
+    courses: [],
+    theoryLessons: {},
+    presentations: {},
+    videos: {},
+    tests: {},
+    testResults: [],
+    notifications: [],
+    weeklyActivities: [],
   };
-
-  saveLMSState(initialState);
-  return initialState;
 }
 
-export function saveLMSState(state: LMSLocalState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.error('Failed to save state to localStorage', e);
-  }
+/**
+ * Kept as a compatibility no-op for callers. UI preferences such as theme and
+ * language already have their own small localStorage keys.
+ */
+export function saveLMSState(_state: LMSLocalState): void {
+  // Intentionally not persisted: authenticated LMS content comes from API.
 }
 
 export function calculateCourseProgress(course: Course): number {
