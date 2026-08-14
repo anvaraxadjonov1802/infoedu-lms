@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "docx-preview": "^0.4.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
