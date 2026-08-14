@@ -1,13 +1,12 @@
 from django.urls import path
 from .registration import RegisterView
+from .fast_auth import FastDemoLoginView, FastLoginView
 from .fast_views import FastBootstrapView, TestDetailView, TestResultDetailView, TheoryDetailView
 from .views import (
     AdminAnnouncementView,
     AdminStatsView,
     ChangePasswordView,
-    DemoLoginView,
     LessonCompleteView,
-    LoginView,
     LogoutView,
     MeView,
     NotificationReadAllView,
@@ -19,9 +18,9 @@ from .views import (
 
 urlpatterns = [
     path('auth/register/', RegisterView.as_view()),
-    path('auth/login/', LoginView.as_view()),
+    path('auth/login/', FastLoginView.as_view()),
     path('auth/logout/', LogoutView.as_view()),
-    path('auth/demo-login/', DemoLoginView.as_view()),
+    path('auth/demo-login/', FastDemoLoginView.as_view()),
     path('auth/me/', MeView.as_view()),
     path('auth/change-password/', ChangePasswordView.as_view()),
     path('bootstrap/', FastBootstrapView.as_view()),
