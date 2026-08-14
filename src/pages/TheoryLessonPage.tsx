@@ -1,12 +1,20 @@
 import React from 'react';
 import { useLMS } from '../context/LMSContext';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
-import { TheoryReader } from '../components/theory/TheoryReader';
-import { WordTheoryReader } from '../components/theory/WordTheoryReader';
-import { PdfTheoryReader } from '../components/theory/PdfTheoryReader';
 import { EmptyState } from '../components/common/EmptyState';
-import { FileText } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { adjacentLessons, routeForLesson } from '../services/lessonNavigation';
+
+const TheoryReader = React.lazy(() => import('../components/theory/TheoryReader').then((m) => ({ default: m.TheoryReader })));
+const WordTheoryReader = React.lazy(() => import('../components/theory/WordTheoryReader').then((m) => ({ default: m.WordTheoryReader })));
+const PdfTheoryReader = React.lazy(() => import('../components/theory/PdfTheoryReader').then((m) => ({ default: m.PdfTheoryReader })));
+
+const ReaderLoader: React.FC = () => (
+  <div className="min-h-[360px] rounded-2xl border border-slate-200 bg-white flex items-center justify-center gap-3 text-sm font-semibold text-slate-500">
+    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+    Material ochilmoqda...
+  </div>
+);
 
 export const TheoryLessonPage: React.FC = () => {
   const { theoryLessons, courses, pageParams, navigateTo, markLessonCompleted } = useLMS();
@@ -78,25 +86,15 @@ export const TheoryLessonPage: React.FC = () => {
         ]}
       />
 
-      {hasPdfPreview ? (
-        <PdfTheoryReader
-          theoryData={theory}
-          onNextLesson={handleNextLesson}
-          onPrevLesson={handlePrevLesson}
-        />
-      ) : hasOriginalDocx ? (
-        <WordTheoryReader
-          theoryData={theory}
-          onNextLesson={handleNextLesson}
-          onPrevLesson={handlePrevLesson}
-        />
-      ) : (
-        <TheoryReader
-          theoryData={theory}
-          onNextLesson={handleNextLesson}
-          onPrevLesson={handlePrevLesson}
-        />
-      )}
+      <React.Suspense fallback={<ReaderLoader />}>
+        {hasPdfPreview ? (
+          <PdfTheoryReader theoryData={theory} onNextLesson={handleNextLesson} onPrevLesson={handlePrevLesson} />
+        ) : hasOriginalDocx ? (
+          <WordTheoryReader theoryData={theory} onNextLesson={handleNextLesson} onPrevLesson={handlePrevLesson} />
+        ) : (
+          <TheoryReader theoryData={theory} onNextLesson={handleNextLesson} onPrevLesson={handlePrevLesson} />
+        )}
+      </React.Suspense>
     </div>
   );
 };
