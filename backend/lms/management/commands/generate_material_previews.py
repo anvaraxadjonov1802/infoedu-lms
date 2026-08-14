@@ -171,12 +171,62 @@ class Command(BaseCommand):
             script_path.write_text(
                 r'''param([Parameter(Mandatory=$true)][string]$JobsPath)
 $ErrorActionPreference = 'Stop'
+
+# Hide Word windows even on Office builds that briefly activate a document window
+# during COM automation. SW_HIDE = 0.
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class InfoEduNativeWindow {
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+}
+"@
+
+function Hide-WordWindow($word, $doc) {
+    try {
+        if ($null -ne $word) {
+            $word.Visible = $false
+            $word.ScreenUpdating = $false
+            try {
+                $hwnd = [IntPtr]([int64]$word.Hwnd)
+                if ($hwnd -ne [IntPtr]::Zero) {
+                    [InfoEduNativeWindow]::ShowWindowAsync($hwnd, 0) | Out-Null
+                }
+            } catch {}
+        }
+        if ($null -ne $doc) {
+            try {
+                $window = $doc.ActiveWindow
+                if ($null -ne $window) {
+                    try {
+                        $window.Visible = $false
+                    } catch {}
+                    try {
+                        $docHwnd = [IntPtr]([int64]$window.Hwnd)
+                        if ($docHwnd -ne [IntPtr]::Zero) {
+                            [InfoEduNativeWindow]::ShowWindowAsync($docHwnd, 0) | Out-Null
+                        }
+                    } catch {}
+                }
+            } catch {}
+        }
+    } catch {}
+}
+
 $items = Get-Content -Raw -LiteralPath $JobsPath | ConvertFrom-Json
 $word = $null
 try {
     $word = New-Object -ComObject Word.Application
     $word.Visible = $false
+    $word.ScreenUpdating = $false
     $word.DisplayAlerts = 0
+    try { $word.AutomationSecurity = 3 } catch {}
+    try { $word.Options.SaveNormalPrompt = $false } catch {}
+    try { $word.Options.ConfirmConversions = $false } catch {}
+    try { $word.Options.UpdateLinksAtOpen = $false } catch {}
+    Hide-WordWindow $word $null
+
     foreach ($item in $items) {
         $inputPath = [string]$item.input
         $outputPath = [string]$item.output
@@ -186,10 +236,14 @@ try {
         }
         $doc = $null
         try {
-            $doc = $word.Documents.Open($inputPath, $false, $true)
+            # ReadOnly + AddToRecentFiles=false keeps automation isolated from the user's Word UI.
+            $doc = $word.Documents.Open($inputPath, $false, $true, $false)
+            Hide-WordWindow $word $doc
+
             # wdExportFormatPDF = 17. Microsoft Word performs the layout/rendering,
             # preserving pictures, floating shapes, SmartArt and Word drawing objects.
             $doc.ExportAsFixedFormat($outputPath, 17)
+            Hide-WordWindow $word $doc
             Write-Output ("OK`t" + $inputPath)
         }
         finally {
@@ -197,12 +251,15 @@ try {
                 $doc.Close(0)
                 [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($doc)
             }
+            Hide-WordWindow $word $null
         }
     }
 }
 finally {
     if ($null -ne $word) {
-        $word.Quit()
+        try { $word.ScreenUpdating = $false } catch {}
+        try { $word.Visible = $false } catch {}
+        try { $word.Quit() } catch {}
         [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($word)
     }
     [GC]::Collect()
