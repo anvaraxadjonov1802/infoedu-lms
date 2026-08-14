@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLMS } from '../context/LMSContext';
+import { api } from '../services/api';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { EmptyState } from '../components/common/EmptyState';
 import { FileText, Loader2 } from 'lucide-react';
@@ -17,7 +18,7 @@ const ReaderLoader: React.FC = () => (
 );
 
 export const TheoryLessonPage: React.FC = () => {
-  const { theoryLessons, courses, pageParams, navigateTo, markLessonCompleted } = useLMS();
+  const { theoryLessons, courses, pageParams, navigateTo, reloadFromServer, addToast } = useLMS();
 
   const lessonId = pageParams.lessonId as string | undefined;
   const fallbackTheory = lessonId
@@ -67,8 +68,12 @@ export const TheoryLessonPage: React.FC = () => {
 
   const handleNextLesson = nextRoute
     ? async () => {
-        await markLessonCompleted(theory.courseId || '', theory.lessonId);
+        // Wait only for the small completion POST so the server unlocks the next
+        // lesson. Do not block navigation on a second full bootstrap request.
+        await api.markLessonCompleted(theory.lessonId);
         navigateTo(nextRoute.page, nextRoute.params);
+        addToast('Dars yakunlandi!', 'Keyingi dars ochildi.', 'success');
+        void reloadFromServer().catch(() => undefined);
       }
     : undefined;
 
