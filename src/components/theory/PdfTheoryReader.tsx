@@ -75,6 +75,8 @@ export const PdfTheoryReader: React.FC<PdfTheoryReaderProps> = ({
     let loadingTask: ReturnType<typeof pdfjs.getDocument> | null = null;
     let observer: ResizeObserver | null = null;
     let resizeTimer = 0;
+    let lastRenderedWidth = 0;
+    let renderGeneration = 0;
 
     const renderPdf = async () => {
       if (!pagesRef.current || !pdfAttachment?.downloadUrl) {
@@ -97,14 +99,21 @@ export const PdfTheoryReader: React.FC<PdfTheoryReaderProps> = ({
         if (cancelled || !pagesRef.current) return;
         setPageCount(pdf.numPages);
 
-        const drawAllPages = async () => {
+        const drawAllPages = async (force = false) => {
           if (cancelled || !pagesRef.current) return;
           const host = pagesRef.current;
-          const availableWidth = Math.max(320, Math.min(host.clientWidth || 816, 900));
-          host.innerHTML = '';
+          const measuredWidth = host.clientWidth || host.parentElement?.clientWidth || 816;
+          const availableWidth = Math.max(320, Math.min(measuredWidth, 900));
+
+          // ResizeObserver can fire because the document height changes or because of browser
+          // scrolling/reflow. Never repaint the PDF unless its actual width changed.
+          if (!force && Math.abs(availableWidth - lastRenderedWidth) < 12) return;
+
+          const generation = ++renderGeneration;
+          const staging = document.createDocumentFragment();
 
           for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-            if (cancelled) return;
+            if (cancelled || generation !== renderGeneration) return;
             const page = await pdf.getPage(pageNumber);
             const baseViewport = page.getViewport({ scale: 1 });
             const cssScale = Math.min(1.65, availableWidth / baseViewport.width);
@@ -121,21 +130,31 @@ export const PdfTheoryReader: React.FC<PdfTheoryReaderProps> = ({
 
             const context = canvas.getContext('2d', { alpha: false });
             if (!context) throw new Error('Canvas renderer ishga tushmadi.');
-            host.appendChild(canvas);
             await page.render({ canvasContext: context, viewport, canvas }).promise;
+            staging.appendChild(canvas);
           }
+
+          if (cancelled || generation !== renderGeneration || !pagesRef.current) return;
+
+          // Swap the fully rendered document in one operation. The old canvases stay visible
+          // while a genuine resize is being redrawn, preventing white/blue flashing.
+          pagesRef.current.replaceChildren(staging);
+          lastRenderedWidth = availableWidth;
         };
 
-        await drawAllPages();
+        await drawAllPages(true);
         if (!cancelled) setIsRendering(false);
 
-        observer = new ResizeObserver(() => {
+        const resizeTarget = root.parentElement || root;
+        observer = new ResizeObserver((entries) => {
+          const width = entries[0]?.contentRect.width || resizeTarget.clientWidth;
+          if (Math.abs(width - lastRenderedWidth) < 12) return;
           window.clearTimeout(resizeTimer);
           resizeTimer = window.setTimeout(() => {
-            void drawAllPages();
-          }, 180);
+            void drawAllPages(false);
+          }, 250);
         });
-        observer.observe(root);
+        observer.observe(resizeTarget);
       } catch (error) {
         if (cancelled) return;
         setIsRendering(false);
@@ -146,6 +165,7 @@ export const PdfTheoryReader: React.FC<PdfTheoryReaderProps> = ({
     void renderPdf();
     return () => {
       cancelled = true;
+      renderGeneration += 1;
       observer?.disconnect();
       window.clearTimeout(resizeTimer);
       void loadingTask?.destroy();
