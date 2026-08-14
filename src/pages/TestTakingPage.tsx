@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export const TestTakingPage: React.FC = () => {
-  const { tests, pageParams, submitTest, navigateTo, addToast } = useLMS();
+  const { tests, pageParams, saveTestResult, reloadFromServer, navigateTo, addToast } = useLMS();
   const targetTestId = (pageParams.testId as string | undefined) || Object.keys(tests)[0];
   const cachedMeta = targetTestId ? tests[targetTestId] : undefined;
 
@@ -138,9 +138,22 @@ export const TestTakingPage: React.FC = () => {
         test.timeLimitMinutes * 60,
         Math.max(1, Math.round((Date.now() - startedAt) / 1000))
       );
-      const result = await submitTest(test.id, userAnswers, Array.from(flaggedIds), elapsed);
+      // The submit response already contains the complete result. Show it
+      // immediately; refresh the lightweight global state in the background.
+      const result = await api.submitTest(test.id, {
+        answers: userAnswers,
+        flaggedQuestionIds: Array.from(flaggedIds),
+        timeSpentSeconds: elapsed,
+      });
+      saveTestResult(result);
       setShowFinishModal(false);
       navigateTo('test_result', { resultId: result.id });
+      addToast(
+        result.isPassed ? 'Tabriklaymiz!' : 'Test yakunlandi',
+        `${result.percentage}% natija qayd etildi.`,
+        result.isPassed ? 'success' : 'warning'
+      );
+      void reloadFromServer().catch(() => undefined);
     } catch (err) {
       addToast(
         'Test saqlanmadi',
@@ -156,9 +169,7 @@ export const TestTakingPage: React.FC = () => {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4 sticky top-16 z-20">
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
-            {test.courseName}
-          </span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">{test.courseName}</span>
           <h2 className="text-base font-bold text-slate-800">{test.title}</h2>
         </div>
 
@@ -201,9 +212,7 @@ export const TestTakingPage: React.FC = () => {
               <span>Oldingi savol</span>
             </button>
 
-            <span className="text-xs text-slate-500 font-semibold">
-              {currentIdx + 1} / {questions.length}
-            </span>
+            <span className="text-xs text-slate-500 font-semibold">{currentIdx + 1} / {questions.length}</span>
 
             {currentIdx < questions.length - 1 ? (
               <button
