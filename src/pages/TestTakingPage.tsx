@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLMS } from '../context/LMSContext';
+import { api } from '../services/api';
+import type { Test } from '../types/lms';
 import { TestQuestionItem } from '../components/test/TestQuestionItem';
 import { TestTimer } from '../components/test/TestTimer';
 import { ConfirmationModal } from '../components/common/ConfirmationModal';
@@ -7,30 +9,91 @@ import { EmptyState } from '../components/common/EmptyState';
 import {
   ChevronLeft,
   ChevronRight,
-  Flag,
   CheckCircle,
   FileQuestion,
-  HelpCircle,
 } from 'lucide-react';
 
 export const TestTakingPage: React.FC = () => {
   const { tests, pageParams, submitTest, navigateTo, addToast } = useLMS();
+  const targetTestId = (pageParams.testId as string | undefined) || Object.keys(tests)[0];
+  const cachedMeta = targetTestId ? tests[targetTestId] : undefined;
 
-  const testId = pageParams.testId || 'test-101';
-  const test = tests[testId] || Object.values(tests)[0];
-
-  const questions = test?.questions || [];
+  const [loadedTest, setLoadedTest] = useState<Test | undefined>(() =>
+    cachedMeta?.questions?.length ? cachedMeta : undefined
+  );
+  const [isLoadingTest, setIsLoadingTest] = useState(!loadedTest && Boolean(targetTestId));
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currentIdx, setCurrentIdx] = useState(0);
-
-  // User answers state: questionId -> answer
   const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
-  // Flagged questions set
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
-
   const [remainingTimeText, setRemainingTimeText] = useState('');
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [startedAt] = useState(() => Date.now());
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!targetTestId) {
+      setIsLoadingTest(false);
+      return;
+    }
+
+    const fromState = tests[targetTestId];
+    if (fromState?.questions?.length) {
+      setLoadedTest(fromState);
+      setIsLoadingTest(false);
+      setLoadError(null);
+      return;
+    }
+
+    setIsLoadingTest(true);
+    setLoadError(null);
+    api.getTest(targetTestId)
+      .then((detail) => {
+        if (cancelled) return;
+        setLoadedTest(detail);
+        setCurrentIdx(0);
+        setUserAnswers({});
+        setFlaggedIds(new Set());
+        setStartedAt(Date.now());
+      })
+      .catch((error) => {
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Test savollarini yuklab bo‘lmadi.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingTest(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targetTestId, tests]);
+
+  const test = loadedTest;
+  const questions = test?.questions || [];
+
+  if (isLoadingTest) {
+    return (
+      <div className="min-h-[45vh] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+          <span className="w-5 h-5 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
+          Test savollari yuklanmoqda...
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <EmptyState
+        title="Test yuklanmadi"
+        description={loadError}
+        actionLabel="Testlarga qaytish"
+        onAction={() => navigateTo('tests')}
+        icon={FileQuestion}
+      />
+    );
+  }
 
   if (!test || questions.length === 0) {
     return (
@@ -56,22 +119,17 @@ export const TestTakingPage: React.FC = () => {
   const handleToggleFlag = () => {
     setFlaggedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(currentQuestion.id)) {
-        next.delete(currentQuestion.id);
-      } else {
-        next.add(currentQuestion.id);
-      }
+      if (next.has(currentQuestion.id)) next.delete(currentQuestion.id);
+      else next.add(currentQuestion.id);
       return next;
     });
   };
 
   const answeredCount = Object.keys(userAnswers).filter(
-    (k) => userAnswers[k] !== undefined && userAnswers[k] !== ''
+    (key) => userAnswers[key] !== undefined && userAnswers[key] !== ''
   ).length;
-
   const unansweredCount = questions.length - answeredCount;
 
-  // Server-side evaluation: correct answers never need to be trusted from the browser.
   const handleFinalSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -96,7 +154,6 @@ export const TestTakingPage: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      {/* Distraction-Free Header Bar */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4 sticky top-16 z-20">
         <div>
           <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
@@ -111,7 +168,6 @@ export const TestTakingPage: React.FC = () => {
             onTimeUp={handleFinalSubmit}
             onRemainingTimeChange={setRemainingTimeText}
           />
-
           <button
             onClick={() => setShowFinishModal(true)}
             disabled={isSubmitting}
@@ -123,9 +179,7 @@ export const TestTakingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Grid: Question Content & Navigation Matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left 3 Cols: Question Item */}
         <div className="lg:col-span-3 space-y-4">
           <TestQuestionItem
             question={currentQuestion}
@@ -137,10 +191,9 @@ export const TestTakingPage: React.FC = () => {
             onToggleFlag={handleToggleFlag}
           />
 
-          {/* Prev/Next Buttons */}
           <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
             <button
-              onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
+              onClick={() => setCurrentIdx((index) => Math.max(0, index - 1))}
               disabled={currentIdx === 0}
               className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5"
             >
@@ -154,7 +207,7 @@ export const TestTakingPage: React.FC = () => {
 
             {currentIdx < questions.length - 1 ? (
               <button
-                onClick={() => setCurrentIdx((i) => Math.min(questions.length - 1, i + 1))}
+                onClick={() => setCurrentIdx((index) => Math.min(questions.length - 1, index + 1))}
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5"
               >
                 <span>Keyingi savol</span>
@@ -173,30 +226,21 @@ export const TestTakingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right 1 Col: Question Navigation Grid Matrix */}
         <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4 h-fit">
-          <h4 className="font-bold text-xs uppercase text-slate-400 tracking-wider">
-            Savollar xaritasi
-          </h4>
-
+          <h4 className="font-bold text-xs uppercase text-slate-400 tracking-wider">Savollar xaritasi</h4>
           <div className="grid grid-cols-5 gap-2">
-            {questions.map((q, idx) => {
-              const hasAnswered = userAnswers[q.id] !== undefined && userAnswers[q.id] !== '';
-              const isFlagged = flaggedIds.has(q.id);
+            {questions.map((question, idx) => {
+              const hasAnswered = userAnswers[question.id] !== undefined && userAnswers[question.id] !== '';
+              const isFlagged = flaggedIds.has(question.id);
               const isCurrent = idx === currentIdx;
-
               let btnClass = 'bg-slate-100 text-slate-600 hover:bg-slate-200';
-              if (isCurrent) {
-                btnClass = 'bg-blue-600 text-white ring-2 ring-blue-500/30 font-bold';
-              } else if (isFlagged) {
-                btnClass = 'bg-amber-100 text-amber-800 font-bold border border-amber-300';
-              } else if (hasAnswered) {
-                btnClass = 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300';
-              }
+              if (isCurrent) btnClass = 'bg-blue-600 text-white ring-2 ring-blue-500/30 font-bold';
+              else if (isFlagged) btnClass = 'bg-amber-100 text-amber-800 font-bold border border-amber-300';
+              else if (hasAnswered) btnClass = 'bg-emerald-100 text-emerald-800 font-bold border border-emerald-300';
 
               return (
                 <button
-                  key={q.id}
+                  key={question.id}
                   onClick={() => setCurrentIdx(idx)}
                   className={`w-9 h-9 rounded-xl text-xs flex items-center justify-center transition-all ${btnClass}`}
                 >
@@ -206,25 +250,14 @@ export const TestTakingPage: React.FC = () => {
             })}
           </div>
 
-          {/* Legend */}
           <div className="pt-3 border-t border-slate-100 space-y-1.5 text-[11px] text-slate-500">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-300" />
-              <span>Javob berilgan</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-md bg-slate-100" />
-              <span>Javob berilmagan</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-md bg-amber-100 border border-amber-300" />
-              <span>Qayta ko‘rish uchun</span>
-            </div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-md bg-emerald-100 border border-emerald-300" /><span>Javob berilgan</span></div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-md bg-slate-100" /><span>Javob berilmagan</span></div>
+            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-md bg-amber-100 border border-amber-300" /><span>Qayta ko‘rish uchun</span></div>
           </div>
         </div>
       </div>
 
-      {/* Confirmation Modal before final submit */}
       <ConfirmationModal
         isOpen={showFinishModal}
         onClose={() => setShowFinishModal(false)}
