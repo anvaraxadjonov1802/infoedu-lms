@@ -1,0 +1,54 @@
+.word-document-shell {
+  --docx-page-width: 816px;
+}
+
+.word-document-shell .docx-wrapper,
+.word-document-shell .infoedu-docx-wrapper {
+  background: transparent !important;
+  padding: 24px !important;
+  overflow-x: auto;
+}
+
+.word-document-shell .docx-wrapper > section,
+.word-document-shell section.infoedu-docx {
+  box-shadow: none !important;
+  margin: 0 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-width: 100%;
+}
+
+.word-document-shell .docx-wrapper > section + section,
+.word-document-shell section.infoedu-docx + section.infoedu-docx {
+  margin-top: 0 !important;
+  border-top: 0 !important;
+}
+
+.word-document-shell .docx-wrapper img,
+.word-document-shell section.infoedu-docx img {
+  max-width: 100%;
+}
+
+.word-document-shell .docx-wrapper table,
+.word-document-shell section.infoedu-docx table {
+  max-width: 100%;
+}
+
+.word-document-shell .docx-wrapper > section,
+.word-document-shell section.infoedu-docx {
+  background: white !important;
+}
+
+@media (max-width: 900px) {
+  .word-document-shell .docx-wrapper,
+  .word-document-shell .infoedu-docx-wrapper {
+    padding: 12px !important;
+  }
+
+  .word-document-shell .docx-wrapper > section,
+  .word-document-shell section.infoedu-docx {
+    width: 100% !important;
+    padding-left: 28px !important;
+    padding-right: 28px !important;
+  }
+}
