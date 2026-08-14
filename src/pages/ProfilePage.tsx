@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLMS } from '../context/LMSContext';
+import { MediaImage } from '../components/common/MediaImage';
 import { Save } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
@@ -23,14 +24,15 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Profile Banner */}
       <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <div className="relative">
-            <img
+            <MediaImage
               src={user.avatarUrl}
               alt={user.fullName}
-              className="w-24 h-24 rounded-full object-cover border-4 border-blue-100 shadow-md"
+              label={user.fullName}
+              variant="avatar"
+              className="w-24 h-24 rounded-full object-cover border-4 border-blue-100 shadow-md text-2xl"
             />
           </div>
 
@@ -46,7 +48,6 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100 text-center">
           <div className="p-3 rounded-xl bg-slate-50">
             <p className="text-[10px] text-slate-400 font-bold uppercase">Jami Kurslar</p>
@@ -67,7 +68,6 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Edit Form */}
       <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
         <h3 className="font-bold text-base text-slate-800 border-b border-slate-100 pb-3">
           Shaxsiy Ma’lumotlarni Tahrirlash
