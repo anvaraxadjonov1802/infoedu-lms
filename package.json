@@ -15,6 +15,7 @@
     "docx-preview": "^0.4.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
+    "pdfjs-dist": "5.7.284",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "recharts": "^3.10.1"
