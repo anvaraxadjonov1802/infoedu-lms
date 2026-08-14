@@ -12,13 +12,20 @@ import {
 import { Calendar } from 'lucide-react';
 
 export const WeeklyActivityChart: React.FC = () => {
-  const { weeklyActivities } = useLMS();
+  const { weeklyActivities, theme } = useLMS();
+  const isDark = theme === 'dark';
   const chartData = weeklyActivities.map((activity) => ({
     name: activity.dayShort,
     daqiqa: activity.minutesSpent,
     darslar: activity.lessonsCompleted,
     testlar: activity.testsCompleted,
   }));
+
+  const gridColor = isDark ? '#273449' : '#f1f5f9';
+  const tickColor = isDark ? '#94a3b8' : '#64748b';
+  const tooltipBackground = isDark ? '#0f172a' : '#ffffff';
+  const tooltipBorder = isDark ? '#334155' : '#e2e8f0';
+  const tooltipText = isDark ? '#e2e8f0' : '#1e293b';
 
   return (
     <div className="p-6 rounded-2xl bg-white border border-slate-100 shadow-xs">
@@ -35,17 +42,21 @@ export const WeeklyActivityChart: React.FC = () => {
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridColor} />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
             <Tooltip
+              cursor={{ fill: isDark ? 'rgba(51, 65, 85, 0.28)' : 'rgba(241, 245, 249, 0.7)' }}
               contentStyle={{
-                backgroundColor: '#ffffff',
+                backgroundColor: tooltipBackground,
+                color: tooltipText,
                 borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                border: `1px solid ${tooltipBorder}`,
+                boxShadow: isDark ? '0 14px 30px rgba(0, 0, 0, 0.35)' : '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
                 fontSize: '12px',
               }}
+              labelStyle={{ color: tooltipText, fontWeight: 700 }}
+              itemStyle={{ color: tooltipText }}
               formatter={(value: number, name: string) => {
                 if (name === 'daqiqa') return [`${value} daqiqa`, 'O‘qish vaqti'];
                 if (name === 'darslar') return [value, 'Tugallangan darslar'];
