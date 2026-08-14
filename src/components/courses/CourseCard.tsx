@@ -2,7 +2,8 @@ import React from 'react';
 import { Course } from '../../types/lms';
 import { useLMS } from '../../context/LMSContext';
 import { ProgressBar } from '../common/ProgressBar';
-import { BookOpen, Layers, Clock, ArrowRight, User } from 'lucide-react';
+import { MediaImage } from '../common/MediaImage';
+import { BookOpen, Layers, Clock, ArrowRight } from 'lucide-react';
 
 interface CourseCardProps {
   course: Course;
@@ -26,9 +27,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
   if (viewMode === 'list') {
     return (
       <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-indigo-200 transition-all flex flex-col sm:flex-row items-center gap-4 group">
-        <img
+        <MediaImage
           src={course.coverImage}
           alt={course.title}
+          label={course.title}
+          variant="course"
           className="w-full sm:w-48 h-32 rounded-xl object-cover shrink-0"
         />
         <div className="flex-1 min-w-0 space-y-2">
@@ -64,9 +67,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
     <div className="p-4 rounded-2xl bg-white border border-slate-100 shadow-xs hover:border-indigo-200 transition-all duration-200 flex flex-col justify-between group">
       <div>
         <div className="relative h-40 rounded-xl overflow-hidden mb-3 bg-slate-100">
-          <img
+          <MediaImage
             src={course.coverImage}
             alt={course.title}
+            label={course.title}
+            variant="course"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           <div className="absolute top-2 left-2">{getStatusBadge(course.status)}</div>
@@ -81,10 +86,12 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, viewMode = 'grid
         <p className="text-xs text-slate-500 line-clamp-2 mt-1 leading-relaxed">{course.description}</p>
 
         <div className="flex items-center gap-2 mt-3 text-xs text-slate-600">
-          <img
+          <MediaImage
             src={course.teacher.avatarUrl}
             alt={course.teacher.name}
-            className="w-5 h-5 rounded-full object-cover border border-slate-200"
+            label={course.teacher.name}
+            variant="avatar"
+            className="w-5 h-5 rounded-full object-cover border border-slate-200 text-[8px]"
           />
           <span className="truncate">{course.teacher.name}</span>
         </div>
