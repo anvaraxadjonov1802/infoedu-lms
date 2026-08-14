@@ -2,7 +2,8 @@ import React from 'react';
 import { Course } from '../../types/lms';
 import { useLMS } from '../../context/LMSContext';
 import { ProgressBar } from '../common/ProgressBar';
-import { PlayCircle, Clock, BookOpen, ChevronRight } from 'lucide-react';
+import { MediaImage } from '../common/MediaImage';
+import { PlayCircle, BookOpen } from 'lucide-react';
 
 interface ActiveCourseCardProps {
   course: Course;
@@ -11,13 +12,12 @@ interface ActiveCourseCardProps {
 export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ course }) => {
   const { navigateTo } = useLMS();
 
-  // Find next available lesson or current module
   const currentModule = course.modules.find((m) => m.lessons.some((l) => !l.isCompleted)) || course.modules[0];
   const nextLesson = currentModule?.lessons.find((l) => !l.isCompleted) || currentModule?.lessons[0];
 
   const handleContinue = () => {
     if (nextLesson) {
-      if (nextLesson.type === 'theory') {
+      if (nextLesson.type === 'theory' || nextLesson.type === 'practical' || nextLesson.type === 'independent') {
         navigateTo('theory', { lessonId: nextLesson.id });
       } else if (nextLesson.type === 'presentation') {
         navigateTo('presentations', { lessonId: nextLesson.id });
@@ -34,11 +34,12 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ course }) =>
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-xs hover:border-indigo-200 transition-all duration-200 flex flex-col justify-between group">
       <div>
-        {/* Cover & Category Badge */}
         <div className="relative h-36 rounded-xl overflow-hidden mb-3 bg-slate-100">
-          <img
+          <MediaImage
             src={course.coverImage}
             alt={course.title}
+            label={course.title}
+            variant="course"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           <div className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-slate-900/70 backdrop-blur-md text-white text-[10px] font-semibold tracking-wide">
@@ -49,21 +50,21 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ course }) =>
           </div>
         </div>
 
-        {/* Course Info */}
         <h3 className="font-bold text-sm text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
           {course.title}
         </h3>
 
         <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-          <img
+          <MediaImage
             src={course.teacher.avatarUrl}
             alt={course.teacher.name}
-            className="w-5 h-5 rounded-full object-cover border border-slate-200"
+            label={course.teacher.name}
+            variant="avatar"
+            className="w-5 h-5 rounded-full object-cover border border-slate-200 text-[8px]"
           />
           <span className="truncate">{course.teacher.name}</span>
         </div>
 
-        {/* Current Module Info */}
         {currentModule && (
           <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
             <p className="text-[10px] text-slate-400 font-semibold uppercase">Joriy Modul</p>
@@ -77,7 +78,6 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ course }) =>
         )}
       </div>
 
-      {/* Progress & Actions Footer */}
       <div className="mt-4 pt-3 border-t border-slate-100 space-y-3">
         <ProgressBar progress={course.progressPercentage} size="sm" color="indigo" />
 
