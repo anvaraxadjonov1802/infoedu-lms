@@ -3,6 +3,7 @@ import { useLMS } from '../context/LMSContext';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { TheoryReader } from '../components/theory/TheoryReader';
 import { WordTheoryReader } from '../components/theory/WordTheoryReader';
+import { PdfTheoryReader } from '../components/theory/PdfTheoryReader';
 import { EmptyState } from '../components/common/EmptyState';
 import { FileText } from 'lucide-react';
 import { adjacentLessons, routeForLesson } from '../services/lessonNavigation';
@@ -44,6 +45,12 @@ export const TheoryLessonPage: React.FC = () => {
   const previousRoute = routeForLesson(adjacent.previous);
   const nextRoute = routeForLesson(adjacent.next);
 
+  const hasPdfPreview = theory.attachments.some((attachment) => {
+    const type = String(attachment.type || '').toLowerCase();
+    const kind = String((attachment as any).kind || '').toLowerCase();
+    return type === 'pdf' && kind === 'word-preview';
+  });
+
   const hasOriginalDocx = theory.attachments.some((attachment) => {
     const type = (attachment.type || '').toLowerCase();
     const name = (attachment.name || '').toLowerCase();
@@ -71,7 +78,13 @@ export const TheoryLessonPage: React.FC = () => {
         ]}
       />
 
-      {hasOriginalDocx ? (
+      {hasPdfPreview ? (
+        <PdfTheoryReader
+          theoryData={theory}
+          onNextLesson={handleNextLesson}
+          onPrevLesson={handlePrevLesson}
+        />
+      ) : hasOriginalDocx ? (
         <WordTheoryReader
           theoryData={theory}
           onNextLesson={handleNextLesson}
