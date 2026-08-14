@@ -25,7 +25,20 @@
 }
 
 .word-document-shell .docx-wrapper img,
-.word-document-shell section.infoedu-docx img {
+.word-document-shell section.infoedu-docx img,
+.word-document-shell .infoedu-docx-fallback-image {
+  max-width: 100% !important;
+  height: auto !important;
+  object-fit: contain;
+}
+
+.word-document-shell .infoedu-docx-fallback-image {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.word-document-shell .docx-wrapper svg,
+.word-document-shell section.infoedu-docx svg {
   max-width: 100%;
 }
 
