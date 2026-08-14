@@ -14,7 +14,7 @@ import { TheoryLessonPage } from './pages/TheoryLessonPage';
 import { PresentationsPage } from './pages/PresentationsPage';
 import { VideoLessonsPage } from './pages/VideoLessonsPage';
 import { TestsPage } from './pages/TestsPage';
-import { TestTakingPage } from './pages/TestTakingPage';
+import { GuardedTestTakingPage } from './pages/GuardedTestTakingPage';
 import { TestResultPage } from './pages/TestResultPage';
 import { ResultsPage } from './pages/ResultsPage';
 import { LearningProgressPage } from './pages/LearningProgressPage';
@@ -67,7 +67,7 @@ const MainLayout: React.FC = () => {
       case 'tests':
         return <TestsPage />;
       case 'test_taking':
-        return <TestTakingPage />;
+        return <GuardedTestTakingPage />;
       case 'test_result':
         return <TestResultPage />;
       case 'results':
