@@ -4,6 +4,7 @@ import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { ModuleAccordion } from '../components/courses/ModuleAccordion';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { EmptyState } from '../components/common/EmptyState';
+import { MediaImage } from '../components/common/MediaImage';
 import {
   BookOpen,
   Layers,
@@ -53,7 +54,13 @@ export const CourseDetailPage: React.FC = () => {
       <div className="p-6 sm:p-8 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="relative rounded-2xl overflow-hidden h-52 lg:h-auto bg-slate-100">
-            <img src={course.coverImage} alt={course.title} className="w-full h-full object-cover" />
+            <MediaImage
+              src={course.coverImage}
+              alt={course.title}
+              label={course.title}
+              variant="course"
+              className="w-full h-full object-cover"
+            />
             <div className="absolute top-3 left-3 px-3 py-1 rounded-xl bg-slate-900/80 backdrop-blur-md text-white font-bold text-xs">
               {course.code}
             </div>
@@ -76,10 +83,12 @@ export const CourseDetailPage: React.FC = () => {
 
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
-                <img
+                <MediaImage
                   src={course.teacher.avatarUrl}
                   alt={course.teacher.name}
-                  className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
+                  label={course.teacher.name}
+                  variant="avatar"
+                  className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0 text-xs"
                 />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-800 truncate">{course.teacher.name}</p>
