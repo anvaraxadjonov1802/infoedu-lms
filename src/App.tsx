@@ -3,25 +3,33 @@ import { LMSProvider, useLMS } from './context/LMSContext';
 import { Sidebar } from './components/common/Sidebar';
 import { Header } from './components/common/Header';
 import { ToastContainer } from './components/common/ToastContainer';
-
-// Pages
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { CoursesPage } from './pages/CoursesPage';
-import { CourseDetailPage } from './pages/CourseDetailPage';
-import { TheoryLessonPage } from './pages/TheoryLessonPage';
-import { PresentationsPage } from './pages/PresentationsPage';
-import { VideoLessonsPage } from './pages/VideoLessonsPage';
-import { TestsPage } from './pages/TestsPage';
-import { GuardedTestTakingPage } from './pages/GuardedTestTakingPage';
-import { TestResultPage } from './pages/TestResultPage';
-import { ResultsPage } from './pages/ResultsPage';
-import { LearningProgressPage } from './pages/LearningProgressPage';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { SettingsPage } from './pages/SettingsPage';
-import { AdminManagementView } from './components/admin/AdminManagementView';
+
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const CoursesPage = React.lazy(() => import('./pages/CoursesPage').then((m) => ({ default: m.CoursesPage })));
+const CourseDetailPage = React.lazy(() => import('./pages/CourseDetailPage').then((m) => ({ default: m.CourseDetailPage })));
+const TheoryLessonPage = React.lazy(() => import('./pages/TheoryLessonPage').then((m) => ({ default: m.TheoryLessonPage })));
+const PresentationsPage = React.lazy(() => import('./pages/PresentationsPage').then((m) => ({ default: m.PresentationsPage })));
+const VideoLessonsPage = React.lazy(() => import('./pages/VideoLessonsPage').then((m) => ({ default: m.VideoLessonsPage })));
+const TestsPage = React.lazy(() => import('./pages/TestsPage').then((m) => ({ default: m.TestsPage })));
+const GuardedTestTakingPage = React.lazy(() => import('./pages/GuardedTestTakingPage').then((m) => ({ default: m.GuardedTestTakingPage })));
+const TestResultPage = React.lazy(() => import('./pages/TestResultPage').then((m) => ({ default: m.TestResultPage })));
+const ResultsPage = React.lazy(() => import('./pages/ResultsPage').then((m) => ({ default: m.ResultsPage })));
+const LearningProgressPage = React.lazy(() => import('./pages/LearningProgressPage').then((m) => ({ default: m.LearningProgressPage })));
+const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+const AdminManagementView = React.lazy(() => import('./components/admin/AdminManagementView').then((m) => ({ default: m.AdminManagementView })));
+
+const PageLoader: React.FC = () => (
+  <div className="min-h-[45vh] flex items-center justify-center">
+    <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+      <span className="w-5 h-5 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" />
+      Sahifa yuklanmoqda...
+    </div>
+  </div>
+);
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated, activePage, isBootstrapping } = useLMS();
@@ -93,7 +101,9 @@ const MainLayout: React.FC = () => {
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Header setMobileOpen={setMobileOpen} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
-          {renderActivePage()}
+          <React.Suspense fallback={<PageLoader />}>
+            {renderActivePage()}
+          </React.Suspense>
         </main>
       </div>
       <ToastContainer />
