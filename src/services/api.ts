@@ -1,5 +1,5 @@
 import type { LMSLocalState } from './lmsService';
-import type { TestResult, UserProfile, UserRole } from '../types/lms';
+import type { Test, TestResult, TheoryLessonContent, UserProfile, UserRole } from '../types/lms';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const normalizedApiUrl = rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://')
@@ -80,9 +80,6 @@ function getRefreshToken() {
 }
 
 function saveTokens(access: string, refresh: string, remember = true) {
-  // JWTs are deliberately kept in localStorage for this SPA deployment model.
-  // If frontend/backend are later hosted on one parent domain, move refresh tokens
-  // to HttpOnly Secure cookies for stronger XSS resistance.
   const storage = remember ? localStorage : sessionStorage;
   storage.setItem(ACCESS_KEY, access);
   storage.setItem(REFRESH_KEY, refresh);
@@ -201,6 +198,9 @@ export const api = {
   },
 
   bootstrap: () => request<LMSLocalState>('/bootstrap/'),
+  getTheory: (theoryId: string) => request<TheoryLessonContent>(`/theory/${theoryId}/`),
+  getTest: (testId: string) => request<Test>(`/tests/${testId}/`),
+  getTestResult: (resultId: string) => request<TestResult>(`/results/${resultId}/`),
   updateProfile: (updates: Partial<UserProfile>) => request<UserProfile>('/auth/me/', { method: 'PATCH', body: JSON.stringify(updates) }),
   changePassword: (oldPassword: string, newPassword: string) => request('/auth/change-password/', { method: 'POST', body: JSON.stringify({ oldPassword, newPassword }) }),
   markLessonCompleted: (lessonId: string) => request<{ ok: boolean; totalStudyMinutes: number }>(`/lessons/${lessonId}/complete/`, { method: 'POST' }),
