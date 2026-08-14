@@ -9,7 +9,6 @@ const storedTheme = localStorage.getItem('infoedu_theme');
 const initialTheme = storedTheme === 'dark' ? 'dark' : 'light';
 document.documentElement.classList.toggle('dark', initialTheme === 'dark');
 document.documentElement.dataset.theme = initialTheme;
-document.documentElement.style.colorScheme = initialTheme;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
