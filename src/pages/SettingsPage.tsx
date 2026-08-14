@@ -49,6 +49,10 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const chooseTheme = (target: 'light' | 'dark') => {
+    if (theme !== target) toggleTheme();
+  };
+
   const languageOptions = [
     { id: 'uz' as const, label: 'O‘zbekcha' },
     { id: 'ru' as const, label: 'Русский' },
@@ -73,8 +77,8 @@ export const SettingsPage: React.FC = () => {
                 key={option.id}
                 type="button"
                 onClick={() => setLanguage(option.id)}
-                className={`p-3.5 rounded-xl border text-xs font-bold text-left flex items-center justify-between ${
-                  language === option.id ? 'bg-blue-50 border-blue-500 text-blue-900' : 'bg-slate-50 border-slate-200 text-slate-700'
+                className={`p-3.5 rounded-xl border text-xs font-bold text-left flex items-center justify-between transition-all ${
+                  language === option.id ? 'bg-blue-50 border-blue-500 text-blue-900' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
                 }`}
               >
                 <span>{option.label}</span>
@@ -90,17 +94,56 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         <div className="space-y-3 pb-6 border-b border-slate-100">
-          <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
-            {theme === 'light' ? <Moon className="w-4 h-4 text-indigo-600" /> : <Sun className="w-4 h-4 text-amber-500" />}
-            Ko‘rinish
-          </h3>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="px-4 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-          >
-            {theme === 'light' ? 'Qorong‘u rejimga o‘tish' : 'Yorug‘ rejimga o‘tish'}
-          </button>
+          <div>
+            <h3 className="font-bold text-sm text-slate-800">Ko‘rinish</h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Platforma rang rejimini tanlang. Tanlov ushbu brauzerda avtomatik saqlanadi.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => chooseTheme('light')}
+              aria-pressed={theme === 'light'}
+              className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-4 ${
+                theme === 'light'
+                  ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-500/10'
+                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <div className="w-11 h-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center shadow-sm shrink-0">
+                <Sun className="w-5 h-5 text-amber-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-bold text-slate-900">Yorug‘ rejim</span>
+                  {theme === 'light' && <Check className="w-4 h-4 text-blue-600" />}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">Oq va yorug‘ interfeys</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => chooseTheme('dark')}
+              aria-pressed={theme === 'dark'}
+              className={`p-4 rounded-2xl border text-left transition-all flex items-center gap-4 ${
+                theme === 'dark'
+                  ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-500/10'
+                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <div className="w-11 h-11 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center shadow-sm shrink-0">
+                <Moon className="w-5 h-5 text-indigo-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-bold text-slate-900">Qorong‘u rejim</span>
+                  {theme === 'dark' && <Check className="w-4 h-4 text-indigo-600" />}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">Ko‘zga yumshoq, to‘liq dark UI</p>
+              </div>
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3 pb-6 border-b border-slate-100">
