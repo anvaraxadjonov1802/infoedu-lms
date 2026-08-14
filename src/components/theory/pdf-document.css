@@ -1,0 +1,32 @@
+.pdf-document-shell {
+  width: 100%;
+}
+
+.infoedu-pdf-pages {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.infoedu-pdf-page {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+  background: #fff;
+  box-shadow: none;
+  margin: 0;
+}
+
+.infoedu-pdf-page + .infoedu-pdf-page {
+  border-top: 0;
+}
+
+@media (max-width: 900px) {
+  .infoedu-pdf-pages {
+    padding: 8px;
+  }
+}
