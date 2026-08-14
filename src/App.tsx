@@ -88,7 +88,7 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 flex flex-col md:flex-row antialiased selection:bg-indigo-600 selection:text-white">
+    <div className="app-shell min-h-screen font-sans flex flex-col md:flex-row antialiased selection:bg-indigo-600 selection:text-white">
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Header setMobileOpen={setMobileOpen} />
