@@ -2,12 +2,13 @@ import React from 'react';
 import { useLMS } from '../context/LMSContext';
 import { Breadcrumbs } from '../components/common/Breadcrumbs';
 import { TheoryReader } from '../components/theory/TheoryReader';
+import { WordTheoryReader } from '../components/theory/WordTheoryReader';
 import { EmptyState } from '../components/common/EmptyState';
 import { FileText } from 'lucide-react';
 import { adjacentLessons, routeForLesson } from '../services/lessonNavigation';
 
 export const TheoryLessonPage: React.FC = () => {
-  const { theoryLessons, courses, pageParams, navigateTo } = useLMS();
+  const { theoryLessons, courses, pageParams, navigateTo, markLessonCompleted } = useLMS();
 
   const lessonId = pageParams.lessonId as string | undefined;
   const fallbackTheory = lessonId
@@ -43,6 +44,23 @@ export const TheoryLessonPage: React.FC = () => {
   const previousRoute = routeForLesson(adjacent.previous);
   const nextRoute = routeForLesson(adjacent.next);
 
+  const hasOriginalDocx = theory.attachments.some((attachment) => {
+    const type = (attachment.type || '').toLowerCase();
+    const name = (attachment.name || '').toLowerCase();
+    return type === 'docx' || name.endsWith('.docx');
+  });
+
+  const handleNextLesson = nextRoute
+    ? async () => {
+        await markLessonCompleted(theory.courseId || '', theory.lessonId);
+        navigateTo(nextRoute.page, nextRoute.params);
+      }
+    : undefined;
+
+  const handlePrevLesson = previousRoute
+    ? () => navigateTo(previousRoute.page, previousRoute.params)
+    : undefined;
+
   return (
     <div className="space-y-6">
       <Breadcrumbs
@@ -53,11 +71,19 @@ export const TheoryLessonPage: React.FC = () => {
         ]}
       />
 
-      <TheoryReader
-        theoryData={theory}
-        onNextLesson={nextRoute ? () => navigateTo(nextRoute.page, nextRoute.params) : undefined}
-        onPrevLesson={previousRoute ? () => navigateTo(previousRoute.page, previousRoute.params) : undefined}
-      />
+      {hasOriginalDocx ? (
+        <WordTheoryReader
+          theoryData={theory}
+          onNextLesson={handleNextLesson}
+          onPrevLesson={handlePrevLesson}
+        />
+      ) : (
+        <TheoryReader
+          theoryData={theory}
+          onNextLesson={handleNextLesson}
+          onPrevLesson={handlePrevLesson}
+        />
+      )}
     </div>
   );
 };
