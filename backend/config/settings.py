@@ -26,6 +26,10 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Compress JSON/API responses before they leave Render. Modern browsers send
+    # Accept-Encoding automatically, so this reduces bootstrap traffic without
+    # changing any frontend contract.
+    'django.middleware.gzip.GZipMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
