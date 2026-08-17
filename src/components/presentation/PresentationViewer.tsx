@@ -11,11 +11,12 @@ import {
   Download,
   CheckCircle,
   Presentation,
+  Loader2,
 } from 'lucide-react';
 
 interface PresentationViewerProps {
   presentation: PresentationData;
-  onNextLesson?: () => void;
+  onNextLesson?: () => void | Promise<void>;
   onPrevLesson?: () => void;
 }
 
@@ -25,168 +26,146 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
   onPrevLesson,
 }) => {
   const { markLessonCompleted, addToast } = useLMS();
+  const slides = presentation.slides || [];
+  const hasSlides = slides.length > 0;
 
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [viewMode, setViewMode] = useState<'slides' | 'file'>('slides');
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [viewMode, setViewMode] = useState<'slides' | 'file'>(() => (hasSlides ? 'slides' : 'file'));
+
   const sourceFileUrl = presentation.downloadUrl || '';
-  const fileUrl = presentation.embedUrl || (
+  const previewUrl = presentation.embedUrl || '';
+  const fileUrl = previewUrl || (
     presentation.fileType === 'pptx' && /^https?:\/\//.test(sourceFileUrl)
       ? `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(sourceFileUrl)}`
       : sourceFileUrl
   );
   const canEmbedFile = ['pdf', 'pptx'].includes(presentation.fileType) && /^https?:\/\//.test(fileUrl || '');
+  const previewIsPdf = presentation.fileType === 'pdf' || /\.pdf(?:$|[?#])/i.test(previewUrl);
 
-  const slides = presentation.slides || [];
   const currentSlide = slides[currentSlideIndex] || {
     slideNumber: 1,
     title: presentation.title,
-    bulletPoints: ['Taqdimot slaydlari yuklanmoqda...'],
+    bulletPoints: [],
   };
 
   const handleNextSlide = () => {
-    if (currentSlideIndex < slides.length - 1) {
-      setCurrentSlideIndex((prev) => prev + 1);
-    }
+    if (currentSlideIndex < slides.length - 1) setCurrentSlideIndex((prev) => prev + 1);
   };
 
   const handlePrevSlide = () => {
-    if (currentSlideIndex > 0) {
-      setCurrentSlideIndex((prev) => prev - 1);
-    }
+    if (currentSlideIndex > 0) setCurrentSlideIndex((prev) => prev - 1);
   };
 
   const handleMarkCompleted = async () => {
-    setIsCompleted(true);
+    if (isFinishing || isCompleted) return;
+    setIsFinishing(true);
     try {
       await markLessonCompleted(presentation.courseId, presentation.lessonId);
-    } catch {
-      setIsCompleted(false);
+      setIsCompleted(true);
+    } finally {
+      setIsFinishing(false);
     }
   };
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
+  const handleNextLesson = async () => {
+    if (!onNextLesson || isFinishing) return;
+    setIsFinishing(true);
+    try {
+      // Presentation is now part of the sequential course flow. Save completion
+      // before navigating so the following test/lesson is already unlocked.
+      if (!isCompleted) {
+        await markLessonCompleted(presentation.courseId, presentation.lessonId);
+        setIsCompleted(true);
+      }
+      await onNextLesson();
+    } finally {
+      setIsFinishing(false);
+    }
   };
 
   return (
-    <div
-      className={`space-y-4 ${
-        isFullscreen
-          ? 'fixed inset-0 z-50 bg-slate-900 p-6 flex flex-col justify-between overflow-y-auto'
-          : ''
-      }`}
-    >
-      {/* Top Controls Bar */}
-      <div
-        className={`p-4 rounded-2xl border shadow-xs flex flex-wrap items-center justify-between gap-4 ${
-          isFullscreen
-            ? 'bg-slate-800 border-slate-700 text-white'
-            : 'bg-white border-slate-200 text-slate-800'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-purple-100 text-purple-700">
+    <div className={`space-y-4 ${isFullscreen ? 'fixed inset-0 z-50 bg-slate-900 p-6 flex flex-col justify-between overflow-y-auto' : ''}`}>
+      <div className={`p-4 rounded-2xl border shadow-xs flex flex-wrap items-center justify-between gap-4 ${isFullscreen ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 rounded-xl bg-purple-100 text-purple-700 shrink-0">
             <Presentation className="w-5 h-5" />
           </div>
-          <div>
-            <h3 className="font-bold text-sm truncate max-w-xs">{presentation.title}</h3>
+          <div className="min-w-0">
+            <h3 className="font-bold text-sm truncate max-w-md">{presentation.title}</h3>
             <p className="text-xs text-slate-400">
-              Slayd {currentSlideIndex + 1} / {slides.length}
+              {hasSlides
+                ? `Slayd ${currentSlideIndex + 1} / ${slides.length}`
+                : `${presentation.fileType.toUpperCase()}${presentation.fileSize ? ` · ${presentation.fileSize}` : ''}`}
             </p>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          {canEmbedFile && (
+        <div className="flex flex-wrap items-center gap-2">
+          {hasSlides && canEmbedFile && (
             <div className="flex items-center rounded-xl bg-slate-100 p-1 text-[11px] font-bold text-slate-600">
               <button onClick={() => setViewMode('slides')} className={`px-2.5 py-1 rounded-lg ${viewMode === 'slides' ? 'bg-white text-blue-700 shadow-xs' : ''}`}>Slayd</button>
-              <button onClick={() => setViewMode('file')} className={`px-2.5 py-1 rounded-lg ${viewMode === 'file' ? 'bg-white text-blue-700 shadow-xs' : ''}`}>{presentation.fileType.toUpperCase()}</button>
+              <button onClick={() => setViewMode('file')} className={`px-2.5 py-1 rounded-lg ${viewMode === 'file' ? 'bg-white text-blue-700 shadow-xs' : ''}`}>Original</button>
             </div>
           )}
-          {/* Zoom controls */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 text-slate-700">
-            <button
-              onClick={() => setZoomLevel((z) => Math.max(80, z - 10))}
-              className="p-1 hover:bg-white rounded-lg transition-colors"
-              title="Kichraytirish"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-bold px-1">{zoomLevel}%</span>
-            <button
-              onClick={() => setZoomLevel((z) => Math.min(150, z + 10))}
-              className="p-1 hover:bg-white rounded-lg transition-colors"
-              title="Kattalashtirish"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-          </div>
 
-          {/* Fullscreen button */}
-          <button
-            onClick={toggleFullscreen}
-            className={`p-2 rounded-xl border transition-colors ${
-              isFullscreen
-                ? 'border-slate-700 text-white hover:bg-slate-800'
-                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-            title={isFullscreen ? 'Chiqish' : 'To‘liq ekran'}
-          >
+          {viewMode === 'slides' && hasSlides && (
+            <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 text-slate-700">
+              <button onClick={() => setZoomLevel((z) => Math.max(80, z - 10))} className="p-1 hover:bg-white rounded-lg" title="Kichraytirish">
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold px-1">{zoomLevel}%</span>
+              <button onClick={() => setZoomLevel((z) => Math.min(150, z + 10))} className="p-1 hover:bg-white rounded-lg" title="Kattalashtirish">
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <button onClick={() => setIsFullscreen((value) => !value)} className={`p-2 rounded-xl border ${isFullscreen ? 'border-slate-700 text-white hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`} title={isFullscreen ? 'Chiqish' : 'To‘liq ekran'}>
             {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
-          {/* Download button */}
           <a
             href={presentation.downloadUrl}
             target="_blank"
             rel="noreferrer"
-            onClick={(e) => {
+            onClick={(event) => {
               if (!presentation.downloadUrl || presentation.downloadUrl === '#') {
-                e.preventDefault();
-                addToast('Fayl mavjud emas', 'Yuklab olinadigan fayl biriktirilmagan.', 'warning');
+                event.preventDefault();
+                addToast('Fayl mavjud emas', 'Yuklab olinadigan PPTX fayl biriktirilmagan.', 'warning');
               }
             }}
-            className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-            title="Slaydni yuklab olish"
+            className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50"
+            title="Original PPTXni yuklab olish"
           >
             <Download className="w-4 h-4" />
           </a>
 
-          {/* Mark completed */}
           <button
             onClick={handleMarkCompleted}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              isCompleted
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
-                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20'
-            }`}
+            disabled={isFinishing || isCompleted}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 disabled:cursor-default ${isCompleted ? 'bg-emerald-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
           >
-            <CheckCircle className="w-4 h-4" />
+            {isFinishing && !isCompleted ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
             <span>{isCompleted ? 'Tugallandi' : 'Taqdimotni tugatdim'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Presentation Stage */}
       {viewMode === 'file' && canEmbedFile ? (
-        <div className={`rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-xl ${isFullscreen ? 'flex-1 min-h-[70vh]' : 'h-[70vh] min-h-[520px]'}`}>
+        <div className={`rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 shadow-xl ${isFullscreen ? 'flex-1 min-h-[70vh]' : 'h-[76vh] min-h-[560px]'}`}>
           <iframe
-            src={presentation.fileType === 'pdf' ? `${fileUrl}#toolbar=1&navpanes=0&view=FitH` : fileUrl}
+            src={previewIsPdf ? `${fileUrl}#toolbar=1&navpanes=0&view=FitH` : fileUrl}
             title={presentation.title}
             className="w-full h-full border-0 bg-white"
           />
         </div>
-      ) : (
+      ) : hasSlides ? (
         <div
-          className={`rounded-2xl border shadow-lg overflow-hidden flex flex-col justify-between transition-all ${
-            isFullscreen
-              ? 'flex-1 bg-slate-950 border-slate-800 text-white my-4 p-8'
-              : 'bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border-slate-800 text-white p-8 min-h-[420px]'
-          }`}
+          className={`rounded-2xl border shadow-lg overflow-hidden flex flex-col justify-between ${isFullscreen ? 'flex-1 bg-slate-950 border-slate-800 text-white my-4 p-8' : 'bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border-slate-800 text-white p-8 min-h-[420px]'}`}
           style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
         >
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
@@ -197,7 +176,6 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             </div>
             <span className="px-3 py-1 rounded-full bg-white/10 text-xs font-bold">Slayd #{currentSlide.slideNumber}</span>
           </div>
-
           <div className="my-8 space-y-4">
             <ul className="space-y-3">
               {currentSlide.bulletPoints?.map((point, index) => (
@@ -209,7 +187,6 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             </ul>
             {currentSlide.codeOrFormula && (
               <div className="mt-6 p-4 rounded-xl bg-black/50 border border-white/10 font-mono text-xs text-blue-300">
-                <span className="text-[10px] text-slate-500 block mb-1">Formula / Kod:</span>
                 <code>{currentSlide.codeOrFormula}</code>
               </div>
             )}
@@ -218,61 +195,38 @@ export const PresentationViewer: React.FC<PresentationViewerProps> = ({
             <span>InfoEdu LMS Slide Viewer</span><span>{presentation.moduleName}</span>
           </div>
         </div>
+      ) : (
+        <div className="min-h-[420px] rounded-2xl border border-slate-200 bg-white flex flex-col items-center justify-center text-center p-8 gap-3">
+          <Presentation className="w-10 h-10 text-slate-300" />
+          <p className="font-bold text-slate-700">Taqdimot preview ochilmadi</p>
+          <p className="text-xs text-slate-500">Original PPTX faylni yuqoridagi yuklab olish tugmasi orqali ochishingiz mumkin.</p>
+        </div>
       )}
 
-      {/* Navigation Thumbnails & Slide Prev/Next Controls */}
-      {viewMode === 'slides' && (
-      <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between gap-4">
-        <button
-          onClick={handlePrevSlide}
-          disabled={currentSlideIndex === 0}
-          className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span>Oldingi slayd</span>
-        </button>
-
-        {/* Slide Indicator Dots */}
-        <div className="flex items-center gap-1.5 overflow-x-auto max-w-xs scrollbar-none">
-          {slides.map((s, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentSlideIndex(idx)}
-              className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
-                idx === currentSlideIndex
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {idx + 1}
-            </button>
-          ))}
+      {viewMode === 'slides' && hasSlides && (
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between gap-4">
+          <button onClick={handlePrevSlide} disabled={currentSlideIndex === 0} className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5">
+            <ChevronLeft className="w-4 h-4" /> Oldingi slayd
+          </button>
+          <div className="flex items-center gap-1.5 overflow-x-auto max-w-xs scrollbar-none">
+            {slides.map((_, idx) => (
+              <button key={idx} onClick={() => setCurrentSlideIndex(idx)} className={`w-7 h-7 rounded-lg text-xs font-bold ${idx === currentSlideIndex ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                {idx + 1}
+              </button>
+            ))}
+          </div>
+          <button onClick={handleNextSlide} disabled={currentSlideIndex === slides.length - 1} className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 flex items-center gap-1.5">
+            Keyingi slayd <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
-
-        <button
-          onClick={handleNextSlide}
-          disabled={currentSlideIndex === slides.length - 1}
-          className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs disabled:opacity-40 flex items-center gap-1.5"
-        >
-          <span>Keyingi slayd</span>
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
       )}
 
       <div className="pt-2 flex items-center justify-between gap-3">
-        <button
-          onClick={onPrevLesson}
-          disabled={!onPrevLesson}
-          className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 flex items-center gap-2"
-        >
+        <button onClick={onPrevLesson} disabled={!onPrevLesson || isFinishing} className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 flex items-center gap-2">
           <ChevronLeft className="w-4 h-4" /> Oldingi dars
         </button>
-        <button
-          onClick={onNextLesson}
-          disabled={!onNextLesson}
-          className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 flex items-center gap-2"
-        >
+        <button onClick={handleNextLesson} disabled={!onNextLesson || isFinishing} className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-40 flex items-center gap-2">
+          {isFinishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Keyingi dars <ChevronRight className="w-4 h-4" />
         </button>
       </div>
