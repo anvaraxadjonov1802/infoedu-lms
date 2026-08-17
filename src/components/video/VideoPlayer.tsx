@@ -19,6 +19,47 @@ interface VideoPlayerProps {
   onSelectPlaylistItem?: (lesson: Lesson) => void;
 }
 
+const getYouTubeEmbedUrl = (value: string) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  let videoId = '';
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    const parts = parsed.pathname.split('/').filter(Boolean);
+
+    if (host === 'youtu.be') {
+      videoId = parts[0] || '';
+    } else if (
+      host === 'youtube.com' ||
+      host === 'm.youtube.com' ||
+      host === 'youtube-nocookie.com'
+    ) {
+      if (parsed.pathname === '/watch') {
+        videoId = parsed.searchParams.get('v') || '';
+      } else if (parts[0] === 'embed' || parts[0] === 'shorts' || parts[0] === 'live') {
+        videoId = parts[1] || '';
+      }
+    }
+  } catch {
+    // Fall through to tolerant regex parsing for malformed/legacy URLs.
+  }
+
+  if (!videoId) {
+    const match = raw.match(
+      /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?.*?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,})/i,
+    );
+    videoId = match?.[1] || '';
+  }
+
+  if (!videoId && /^[A-Za-z0-9_-]{6,}$/.test(raw)) {
+    videoId = raw;
+  }
+
+  return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : raw;
+};
+
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   video,
   playlist = [],
@@ -32,12 +73,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const playerRef = useRef<any>(null);
   const syncTimerRef = useRef<number | null>(null);
 
+  const iframeBaseUrl = video.embedType === 'youtube'
+    ? getYouTubeEmbedUrl(video.videoUrl)
+    : video.videoUrl;
+  const iframeSrc = iframeBaseUrl
+    ? `${iframeBaseUrl}${iframeBaseUrl.includes('?') ? '&' : '?'}autoplay=0&rel=0&enablejsapi=1&playsinline=1`
+    : '';
+
   useEffect(() => {
     setIsCompleted(video.isCompleted);
   }, [video.id, video.isCompleted]);
 
   useEffect(() => {
-    if (video.embedType !== 'youtube' || !iframeRef.current) return;
+    if (video.embedType !== 'youtube' || !iframeRef.current || !iframeSrc) return;
 
     let cancelled = false;
     const setupPlayer = () => {
@@ -101,7 +149,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       try { playerRef.current?.destroy?.(); } catch { /* noop */ }
       playerRef.current = null;
     };
-  }, [video.id, video.embedType, video.durationSeconds]);
+  }, [video.id, video.embedType, video.durationSeconds, video.lastPositionSeconds, iframeSrc]);
 
   const handleDirectProgress = (event: React.SyntheticEvent<HTMLVideoElement>) => {
     const element = event.currentTarget;
@@ -134,15 +182,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               }}
               onTimeUpdate={handleDirectProgress}
             />
-          ) : (
+          ) : iframeSrc ? (
             <iframe
+              key={iframeSrc}
               ref={iframeRef}
-              src={`${video.videoUrl}${video.videoUrl.includes('?') ? '&' : '?'}autoplay=0&rel=0&enablejsapi=1`}
+              src={iframeSrc}
               title={video.title}
               className="w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerPolicy="strict-origin-when-cross-origin"
               allowFullScreen
             />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-sm text-slate-300">
+              Video havolasi mavjud emas.
+            </div>
           )}
         </div>
 
