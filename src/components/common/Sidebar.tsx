@@ -31,15 +31,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
-  const { activePage, navigateTo, notifications, user } = useLMS();
+  const { activePage, navigateTo, notifications, user, presentations } = useLMS();
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const hasPresentations = Object.keys(presentations).length > 0;
 
   const navItems: { id: PageView; label: string; icon: React.FC<{ className?: string }>; badge?: number }[] = [
     { id: 'dashboard', label: 'Bosh sahifa', icon: LayoutDashboard },
     { id: 'courses', label: 'Mening kurslarim', icon: BookOpen },
     { id: 'theory', label: 'Nazariy darslar', icon: FileText },
-    { id: 'presentations', label: 'Taqdimotlar', icon: Presentation },
+  ];
+
+  if (hasPresentations) {
+    navItems.push({ id: 'presentations', label: 'Taqdimotlar', icon: Presentation });
+  }
+
+  navItems.push(
     { id: 'videos', label: 'Video darslar', icon: Video },
     { id: 'tests', label: 'Testlar', icon: FileQuestion },
     { id: 'results', label: 'Natijalarim', icon: Award },
@@ -47,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'notifications', label: 'Bildirishnomalar', icon: Bell, badge: unreadCount },
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'settings', label: 'Sozlamalar', icon: Settings },
-  ];
+  );
 
   if (user.role === 'admin' || user.role === 'teacher') {
     navItems.push({
@@ -64,7 +71,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Mobile Backdrop Drawer */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden transition-opacity"
@@ -72,14 +78,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {/* Sidebar Container */}
       <aside
         className={`fixed top-0 bottom-0 left-0 z-40 bg-white/90 backdrop-blur-md border-r border-slate-200/80 transition-all duration-300 flex flex-col justify-between ${
           mobileOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}`}
       >
         <div>
-          {/* Logo Section */}
           <div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
             <button
               onClick={() => handleNavClick('dashboard')}
@@ -97,7 +101,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </button>
 
-            {/* Collapse toggle button for Desktop */}
             <button
               onClick={() => setIsCollapsed(!isCollapsed)}
               className="hidden lg:flex w-7 h-7 items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"
@@ -107,7 +110,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* User Role Badge preview */}
           {(!isCollapsed || mobileOpen) && (
             <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-100 flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">Foydalanuvchi:</span>
@@ -125,7 +127,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
 
-          {/* Navigation Links */}
           <nav className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-140px)] scrollbar-none">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -165,7 +166,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
 
-        {/* Footer User Mini Info */}
         {(!isCollapsed || mobileOpen) && (
           <div className="p-4 border-t border-slate-100">
             <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50">
