@@ -43,6 +43,7 @@ export interface SubmitTestPayload {
   answers: Record<string, unknown>;
   flaggedQuestionIds?: string[];
   timeSpentSeconds: number;
+  submissionId?: string;
 }
 
 export interface AdminStudentRow {
@@ -159,6 +160,17 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   return data as T;
 }
 
+function makeSubmissionId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `sub-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 export const api = {
   hasSession: () => Boolean(readToken(ACCESS_KEY) || readToken(REFRESH_KEY)),
   clearSession: clearTokens,
@@ -206,7 +218,31 @@ export const api = {
   markLessonCompleted: (lessonId: string) => request<{ ok: boolean; totalStudyMinutes: number }>(`/lessons/${lessonId}/complete/`, { method: 'POST' }),
   updateTheory: (theoryId: string, payload: { notes?: string; isBookmarked?: boolean }) => request(`/theory/${theoryId}/progress/`, { method: 'PATCH', body: JSON.stringify(payload) }),
   updateVideoProgress: (videoId: string, payload: { seconds: number; percentage: number; markCompleted?: boolean }) => request<{ ok: boolean; lastPositionSeconds: number; watchedPercentage: number; isCompleted: boolean; totalStudyMinutes: number }>(`/videos/${videoId}/progress/`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  submitTest: (testId: string, payload: SubmitTestPayload) => request<TestResult>(`/tests/${testId}/submit/`, { method: 'POST', body: JSON.stringify(payload) }),
+
+  async submitTest(testId: string, payload: SubmitTestPayload): Promise<TestResult> {
+    // Keep one submission ID across retries. If Render closes the socket after the DB
+    // commit, the backend returns the already-created attempt instead of writing another one.
+    const stablePayload: SubmitTestPayload = {
+      ...payload,
+      submissionId: payload.submissionId || makeSubmissionId(),
+    };
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await request<TestResult>(`/tests/${testId}/submit/`, {
+          method: 'POST',
+          body: JSON.stringify(stablePayload),
+        });
+      } catch (error) {
+        const transient = error instanceof ApiError && [0, 502, 503, 504].includes(error.status);
+        if (!transient || attempt === 1) throw error;
+        await sleep(1200);
+      }
+    }
+
+    throw new ApiError('Test natijasini serverga yuborib bo‘lmadi.', 0, null);
+  },
+
   markNotificationRead: (id: string) => request(`/notifications/${id}/read/`, { method: 'POST' }),
   markAllNotificationsRead: () => request('/notifications/read-all/', { method: 'POST' }),
   adminStats: () => request<AdminStatsResponse>('/admin/stats/'),
