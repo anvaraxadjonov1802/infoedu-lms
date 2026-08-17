@@ -7,58 +7,57 @@ from lms.models import Course, Lesson, Video
 
 VIDEO_SPECS = {
     1: {
-        'title': '1-modul video darsi — Algoritm va dasturlash asoslari',
+        'title': '1-modul video darsi — Algoritm nima va nima uchun kerak?',
         'provider': 'youtube',
-        'url': 'https://www.youtube.com/watch?v=EugLyZzJuj4',
-        'duration_minutes': 20,
+        'url': 'https://www.youtube.com/watch?v=CvSOaYi89B4',
+        'duration_minutes': 5,
         'description': (
-            'Algoritm nima, dasturlashda algoritmik fikrlash nima uchun kerak va '
-            'masalani ketma-ket qadamlar orqali yechish qanday ishlashini mustahkamlaydi. '
-            '1-moduldagi algoritm, chiziqli va tarmoqlanuvchi algoritmlar mavzulariga mos.'
+            'Algoritm tushunchasi, masalani qadamlarga ajratish va kompyuter dasturlarida '
+            'algoritmlarning ahamiyatini tushuntiradi. 1-moduldagi algoritm, chiziqli va '
+            'tarmoqlanuvchi algoritmlar mavzulariga mos.'
         ),
-        'source': 'Robotics Lab — Dasturlashga ALGORITM kerak emasmi?',
+        'source': 'Khan Academy Computing — What is an algorithm and why should you care?',
     },
     2: {
         'title': '2-modul video darsi — Scratch bilan ishlashni boshlash',
-        'provider': 'vimeo',
-        'url': 'https://vimeo.com/80961102',
-        'duration_minutes': 10,
+        'provider': 'youtube',
+        'url': 'https://www.youtube.com/watch?v=0Qb9UFiwH64',
+        'duration_minutes': 5,
         'description': (
-            'Scratch muhiti, sprite bilan ishlash va vizual bloklar orqali dastur tuzishni '
-            'boshlash bo‘yicha kirish darsi. Takrorlanish va Scratch asoslari mavzularini '
-            'amaliy ko‘rinishda mustahkamlaydi.'
+            'Scratch muhiti va vizual dasturlash bilan tanishtiradi. 2-moduldagi '
+            'takrorlanish, Scratch muhiti va bloklar bilan ishlash mavzulariga mos.'
         ),
-        'source': 'Lifelong Kindergarten / MIT Media Lab — Getting Started with Scratch',
+        'source': 'Scratch Foundation — Getting Started with Scratch',
     },
     3: {
-        'title': '3-modul video darsi — Scratch 3 da Pong o‘yini',
-        'provider': 'vimeo',
-        'url': 'https://vimeo.com/410678508',
-        'duration_minutes': 20,
+        'title': '3-modul video darsi — Scratch’da Catch Game yaratish',
+        'provider': 'youtube',
+        'url': 'https://www.youtube.com/watch?v=7NN5v2wSL4U',
+        'duration_minutes': 10,
         'description': (
-            'Scratch 3 da ikki o‘yinchili Pong o‘yinini yaratish orqali harakat, hodisalar, '
-            'o‘zaro ta’sir va hisob yuritish kabi tushunchalarni bir loyiha ichida ko‘rsatadi. '
-            '3-moduldagi animatsiya, eventlar va o‘yin yaratish mavzulariga mos.'
+            'Scratch’da interaktiv Catch Game yaratish orqali harakat, hodisalar, '
+            'shartlar, takrorlanish, operatorlar va hisob yuritishni amalda ko‘rsatadi. '
+            '3-moduldagi animatsiya, eventlar va o‘yin logikasiga mos.'
         ),
-        'source': 'Ciarán Coughlan — Building a Pong game using Scratch 3',
+        'source': 'Scratch Team — How to Make a Catch Game in Scratch',
     },
     4: {
-        'title': '4-modul video darsi — Scratch Pen va geometrik shakllar',
-        'provider': 'vimeo',
-        'url': 'https://vimeo.com/314879021',
+        'title': '4-modul video darsi — Scratch’da Pong Game yaratish',
+        'provider': 'youtube',
+        'url': 'https://www.youtube.com/watch?v=BlmBDrnhd2I',
         'duration_minutes': 15,
         'description': (
-            'Scratch Pen yordamida geometrik shakllarni dasturiy chizish, burilish burchaklari '
-            'va takrorlanuvchi qadamlarni qo‘llashni ko‘rsatadi. 4-moduldagi qalam, geometriya '
-            'va ko‘pburchaklar mavzulariga mos.'
+            'Scratch’da yakuniy loyiha sifatida Pong o‘yini yaratishni ko‘rsatadi: '
+            'harakat, hisob, Game Over va darajalar bilan ishlash. 4-moduldagi '
+            'murakkabroq Scratch loyihalari va yakuniy loyiha mavzulariga mos.'
         ),
-        'source': 'Codified Concepts — Scratch Lesson 4: Turtle Drawing',
+        'source': 'Scratch Team — How to Make a Pong Game in Scratch',
     },
 }
 
 
 class Command(BaseCommand):
-    help = 'DAST-101 kursining har bir moduliga bittadan mos video dars qo‘shadi.'
+    help = 'DAST-101 kursining har bir moduliga bittadan mos YouTube video dars qo‘shadi yoki yangilaydi.'
 
     def add_arguments(self, parser):
         parser.add_argument('--course-code', default='DAST-101')
@@ -105,8 +104,6 @@ class Command(BaseCommand):
                         f'{module.order}-modul oxirida kutilmagan darslar bor: {names}'
                     )
 
-                # Free final module order slots first; this makes the command safe both
-                # before and after a previous run without colliding with unique(module, order).
                 Lesson.objects.filter(
                     module=module,
                     lesson_type__in=['video', 'practical', 'independent'],
@@ -121,7 +118,7 @@ class Command(BaseCommand):
                     video_lesson.title = spec['title']
                     video_lesson.duration_minutes = spec['duration_minutes']
                     video_lesson.order = 16
-                    video_lesson.description = f'{module.order}-modul yakuniy video darsi.'
+                    video_lesson.description = f'{module.order}-modul yakuniy YouTube video darsi.'
                     video_lesson.is_published = True
                     video_lesson.save(update_fields=[
                         'title', 'duration_minutes', 'order', 'description', 'is_published'
@@ -134,7 +131,7 @@ class Command(BaseCommand):
                         lesson_type='video',
                         duration_minutes=spec['duration_minutes'],
                         order=16,
-                        description=f'{module.order}-modul yakuniy video darsi.',
+                        description=f'{module.order}-modul yakuniy YouTube video darsi.',
                         is_published=True,
                     )
                     created += 1
@@ -144,8 +141,8 @@ class Command(BaseCommand):
                     defaults={
                         'title': spec['title'],
                         'video_url': spec['url'],
-                        'embed_type': spec['provider'],
-                        'duration_seconds': 0,
+                        'embed_type': 'youtube',
+                        'duration_seconds': spec['duration_minutes'] * 60,
                         'description': spec['description'],
                         'resources': [],
                         'transcript': '',
@@ -174,15 +171,29 @@ class Command(BaseCommand):
                         f'{module.order}-modulda tartibga tushmagan dars qoldi: {names}'
                     )
 
-        video_count = Video.objects.filter(lesson__module__course=course).count()
+        videos = list(
+            Video.objects.filter(lesson__module__course=course)
+            .select_related('lesson__module')
+            .order_by('lesson__module__order')
+        )
+        youtube_count = sum(
+            1 for item in videos
+            if item.embed_type == 'youtube' and 'youtube.com/watch?v=' in item.video_url
+        )
         lesson_count = Lesson.objects.filter(module__course=course).count()
+
         self.stdout.write(
-            f'VIDEOS: {video_count}/4; LESSONS: {lesson_count}; '
+            f'VIDEOS: {len(videos)}/4; YOUTUBE: {youtube_count}/4; LESSONS: {lesson_count}; '
             f'CREATED: {created}; UPDATED: {updated}'
         )
-        if video_count == 4 and lesson_count == 71:
-            self.stdout.write(self.style.SUCCESS('MODULE VIDEO AUDIT: OK (4/4)'))
+        for item in videos:
+            self.stdout.write(
+                f'{item.lesson.module.order}-modul -> {item.video_url} [{item.embed_type}]'
+            )
+
+        if len(videos) == 4 and youtube_count == 4 and lesson_count == 71:
+            self.stdout.write(self.style.SUCCESS('YOUTUBE VIDEO AUDIT: OK (4/4)'))
         else:
             raise CommandError(
-                f'Video audit mos kelmadi. VIDEOS={video_count}, LESSONS={lesson_count}'
+                f'Video audit mos kelmadi. VIDEOS={len(videos)}, YOUTUBE={youtube_count}, LESSONS={lesson_count}'
             )
