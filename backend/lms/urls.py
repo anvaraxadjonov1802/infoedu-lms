@@ -2,6 +2,7 @@ from django.urls import path
 from .registration import RegisterView
 from .fast_auth import FastDemoLoginView, FastLoginView
 from .fast_views import FastBootstrapView, TestDetailView, TestResultDetailView, TheoryDetailView
+from .robust_test_submit import RobustTestSubmitView
 from .views import (
     AdminAnnouncementView,
     AdminStatsView,
@@ -11,7 +12,6 @@ from .views import (
     MeView,
     NotificationReadAllView,
     NotificationReadView,
-    TestSubmitView,
     TheoryProgressView,
     VideoProgressView,
 )
@@ -29,7 +29,7 @@ urlpatterns = [
     path('theory/<str:theory_id>/progress/', TheoryProgressView.as_view()),
     path('videos/<str:video_id>/progress/', VideoProgressView.as_view()),
     path('tests/<str:test_id>/', TestDetailView.as_view()),
-    path('tests/<str:test_id>/submit/', TestSubmitView.as_view()),
+    path('tests/<str:test_id>/submit/', RobustTestSubmitView.as_view()),
     path('results/<str:result_id>/', TestResultDetailView.as_view()),
     path('notifications/<str:notification_id>/read/', NotificationReadView.as_view()),
     path('notifications/read-all/', NotificationReadAllView.as_view()),
